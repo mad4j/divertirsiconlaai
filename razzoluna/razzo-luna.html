@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Razzo verso la Luna</title>
+<style>
+:root{--bg:#fff;--fg:#1a1a1a;--mut:#666;--sea:#e6f1fb;--bob:#d85a30;--ok:#1d9e75;--earth:#185fa5;--moon:#8a8a86;--card:#f5f5f3;--line:#d8d8d4;color-scheme:light;
+box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#16181c;--fg:#eee;--mut:#9a9a9a;--sea:#0f2438;--bob:#f0997b;--ok:#5dcaa5;--earth:#6fa8dc;--moon:#c9c9c4;--card:#1f2228;--line:#333;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#16181c;--fg:#eee;--mut:#9a9a9a;--sea:#0f2438;--bob:#f0997b;--ok:#5dcaa5;--earth:#6fa8dc;--moon:#c9c9c4;--card:#1f2228;--line:#333;color-scheme:dark}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.4 system-ui,-apple-system,"Segoe UI",sans-serif}
+main{max-width:720px;margin:0 auto;padding:16px}
+h1{font-size:20px;margin:0 0 2px}
+p.s{margin:0 0 12px;color:var(--mut);font-size:13px}
+canvas{display:block;width:100%;border-radius:8px;border:1px solid var(--line)}
+#mapw{min-width:0}
+#map{height:auto;aspect-ratio:3/2;border:0;box-shadow:0 0 0 1px var(--line);background:var(--sea)}
+#chart{height:170px;margin-top:12px;background:var(--card)}
+.stats{display:flex;gap:16px;flex-wrap:wrap;margin:10px 0;font-size:14px}
+.dot{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:5px}
+.row{display:flex;gap:8px;flex-wrap:wrap;margin:10px 0}
+button{background:var(--card);color:var(--fg);border:1px solid var(--line);border-radius:8px;padding:8px 14px;font:inherit;cursor:pointer}
+.ctl{display:grid;grid-template-columns:1fr;gap:6px;margin-top:8px;font-size:13px;color:var(--mut)}
+.ctl label{display:flex;align-items:center;gap:8px}
+.ctl span:first-child{width:150px;flex:none}
+.ctl input{flex:1;min-width:0}
+.ctl b{width:84px;text-align:right;color:var(--fg)}
+.rules{margin-top:12px;padding:10px 12px;background:var(--card);border:1px solid var(--line);border-radius:8px;font-size:13px;color:var(--mut)}
+.rules h2{font-size:14px;margin:0 0 6px;color:var(--fg)}
+.rules p{margin:0 0 6px}
+.rules ul{margin:0 0 6px;padding-left:18px}
+.rules li{margin-bottom:3px}
+.rules :last-child{margin-bottom:0}
+#msg{font-size:13px;min-height:18px;color:var(--bob)}
+#msg.ok{color:var(--ok)}
+@media (min-width:900px),(min-width:600px) and (min-aspect-ratio:1/1){
+main{max-width:1280px;padding:10px 16px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));
+display:grid;grid-template-columns:min(60%,calc((100vh - 90px)*1.5)) minmax(240px,1fr);column-gap:16px;align-items:start}
+header{grid-column:1/-1}
+p.s{margin-bottom:8px}
+.side{min-width:0}
+.side .stats{margin-top:0}
+#chart{height:130px;margin-top:0}
+}
+@media (max-height:520px) and (min-width:600px){
+main{padding-top:6px;padding-bottom:6px;grid-template-columns:min(60%,calc((100vh - 48px)*1.5)) minmax(240px,1fr)}
+h1{font-size:16px}
+p.s{display:none}
+.side .stats{margin:0 0 4px;gap:10px}
+#msg{min-height:0}
+#msg:empty{display:none}
+#chart{height:80px}
+.row{margin:6px 0}
+button{padding:5px 12px}
+.ctl{gap:3px;margin-top:4px}
+.ctl span:first-child{width:130px}
+}
+</style>
+</head>
+<body>
+<main>
+<header>
+<h1>Razzo verso la Luna</h1>
+<p class="s">Un razzo parte dalla Terra e deve passare a 100 km dalla Luna. Il calcolo della rotta usa un valore approssimato di π: bastano poche cifre in meno per mancare l'obiettivo di migliaia di chilometri.</p>
+</header>
+<div id="mapw"><canvas id="map" width="600" height="400"></canvas></div>
+<div class="side">
+<div class="stats">
+<span>Tempo: <b id="t">0.00</b> giorni</span>
+<span><i class="dot" style="background:var(--moon)"></i>Distanza Luna: <b id="dl">0</b> km</span>
+<span>π usato: <b id="pi">3</b></span>
+</div>
+<div id="msg"></div>
+<canvas id="chart"></canvas>
+<div class="row">
+<button id="pp">Pausa</button><button id="rs">Rilancia</button>
+</div>
+<div class="ctl">
+<label><span>Cifre decimali di π</span><input id="dg" type="range" min="0" max="10" value="0"><b id="dgv">3</b></label>
+<label><span>Velocità (giorni/s)</span><input id="sp" type="range" min="0.2" max="3" step="0.1" value="0.8"><b id="spv">0.8</b></label>
+</div>
+<section class="rules">
+<h2>Regole</h2>
+<p>Il razzo parte da un'orbita a 200 km dalla Terra con una spinta unica (10,95 km/s). Poi viaggia solo sotto l'effetto della gravità di Terra e Luna, integrata passo dopo passo (Runge-Kutta). La Terra è ferma, la Luna percorre un'orbita circolare di 384 400 km in 27,32 giorni. Le scale non sono rispettate: Terra e Luna sono ingrandite.</p>
+<ul>
+<li><b>Il pianificatore</b> deve sapere dove sarà la Luna al momento dell'arrivo, quindi usa la sua velocità angolare ω = 2π/T. Con π approssimato ottiene una Luna "fantasma" (cerchio tratteggiato) che si muove un po' più piano della Luna vera.</li>
+<li><b>La rotta</b> (linea tratteggiata) è calcolata scegliendo il punto di partenza giusto per il mondo del pianificatore, in modo da passare a 100 km dalla superficie lunare.</li>
+<li><b>La realtà</b> (linea piena) usa il π esatto: il razzo segue la rotta pianificata, ma trova la Luna in un altro punto.</li>
+<li><b>Obiettivo</b>: quota di passaggio di 100 ± 10 km. Il riquadro mostra la Luna da vicino: il cerchio verde è la quota obiettivo.</li>
+<li>Il grafico mostra l'errore sulla quota di passaggio (scala logaritmica) per ogni numero di cifre di π: ogni cifra in più riduce l'errore di circa dieci volte.</li>
+</ul>
+<p>Un errore piccolo su π diventa un errore di posizione enorme perché si moltiplica per una distanza di 384 400 km: per colpire la Luna con precisione servono almeno 4 cifre decimali (3,1416).</p>
+</section>
+</div>
+</main>
+<script>
+// ---- fisica ----
+const MU_E=398600.4418,MU_M=4902.8,R_E=6371,R_M=1737.4,DM=384400,TM=27.321661*86400;
+const R0=R_E+200,V0=10.95,ALT=100,TOL=10,TMAX=9*86400,ZONE=150000,AFTER=.5*86400,DAY=86400;
+const W_TRUE=2*Math.PI/TM,NDG=10;
+function acc(x,y,t,w,o){
+  const a=w*t,dx=x-DM*Math.cos(a),dy=y-DM*Math.sin(a);
+  const re=Math.hypot(x,y),rm=Math.hypot(dx,dy),ke=-MU_E/(re*re*re),km=-MU_M/(rm*rm*rm);
+  o[0]=ke*x+km*dx;o[1]=ke*y+km*dy;
+}
+// Volo del razzo con una Luna di velocità angolare w. Cerca il passaggio minimo dalla Luna (interpolato).
+function fly(w,beta,rec,crash,extra){
+  let x=R0*Math.cos(beta),y=R0*Math.sin(beta),vx=-V0*Math.sin(beta),vy=V0*Math.cos(beta),t=0;
+  const P=rec?{t:[],x:[],y:[],rx:[],ry:[]}:null,o=[0,0];
+  let pg=null,prx=0,pry=0,pt=0,found=null,gmin=Infinity,gs=1,stopAt=Infinity,res="";
+  while(t<TMAX&&t<stopAt){
+    const a=w*t,mx=DM*Math.cos(a),my=DM*Math.sin(a),mvx=-DM*w*Math.sin(a),mvy=DM*w*Math.cos(a);
+    const rx=x-mx,ry=y-my,d=Math.hypot(rx,ry),re=Math.hypot(x,y),v=Math.hypot(vx,vy);
+    const g=rx*(vx-mvx)+ry*(vy-mvy),sg=Math.sign(rx*(vy-mvy)-ry*(vx-mvx))||1;
+    if(rec){P.t.push(t);P.x.push(x);P.y.push(y);P.rx.push(rx);P.ry.push(ry)}
+    if(d<gmin){gmin=d;gs=sg}
+    if(!found){
+      if(crash&&d<R_M){found={d:R_M,s:sg,t};res="moon";break}
+      if(pg!==null&&pg<0&&g>=0&&d<ZONE){
+        const u=pg/(pg-g),ix=prx+(rx-prx)*u,iy=pry+(ry-pry)*u;
+        found={d:Math.hypot(ix,iy),s:sg,t:pt+(t-pt)*u};stopAt=t+extra;
+      }else if(re<R_E){res="earth";break}
+    }
+    pg=g;prx=rx;pry=ry;pt=t;
+    const dt=Math.min(60,Math.max(2,.01*Math.min(re,d)/v));
+    acc(x,y,t,w,o);const k1x=vx,k1y=vy,k1a=o[0],k1b=o[1];
+    acc(x+dt/2*k1x,y+dt/2*k1y,t+dt/2,w,o);const k2x=vx+dt/2*k1a,k2y=vy+dt/2*k1b,k2a=o[0],k2b=o[1];
+    acc(x+dt/2*k2x,y+dt/2*k2y,t+dt/2,w,o);const k3x=vx+dt/2*k2a,k3y=vy+dt/2*k2b,k3a=o[0],k3b=o[1];
+    acc(x+dt*k3x,y+dt*k3y,t+dt,w,o);const k4x=vx+dt*k3a,k4y=vy+dt*k3b,k4a=o[0],k4b=o[1];
+    x+=dt/6*(k1x+2*k2x+2*k3x+k4x);y+=dt/6*(k1y+2*k2y+2*k3y+k4y);
+    vx+=dt/6*(k1a+2*k2a+2*k3a+k4a);vy+=dt/6*(k1b+2*k2b+2*k3b+k4b);t+=dt;
+  }
+  return {found,gmin,gs,res,P};
+}
+// Distanza di passaggio con segno (il segno dice da che lato della Luna passa il razzo)
+const signedMiss=r=>r.found?r.found.s*r.found.d:r.gs*r.gmin;
+// Pianificatore: trova il punto di partenza che dà quota ALT nel proprio modello di Luna
+function plan(w){
+  const f=b=>signedMiss(fly(w,b,false,false,0))-(R_M+ALT);
+  const b0=w*3.6*DAY-Math.PI;
+  let lo=null,hi=null,fl=0,pb=null,pf=null;
+  for(let b=b0-.8;b<=b0+.8;b+=.02){
+    const v=f(b);
+    if(pb!==null&&pf*v<0&&Math.abs(pf)<2e5&&Math.abs(v)<2e5){lo=pb;hi=b;fl=pf;break}
+    pb=b;pf=v;
+  }
+  if(lo===null)return b0;
+  for(let i=0;i<60;i++){const m=(lo+hi)/2,v=f(m);if(v*fl>0){lo=m;fl=v}else hi=m}
+  return(lo+hi)/2;
+}
+// ---- fine fisica ----
+
+const $=id=>document.getElementById(id);
+const map=$("map"),mc=map.getContext("2d"),ch=$("chart"),cc=ch.getContext("2d");
+const P={sp:.8,dg:0};
+const piOf=d=>d>=NDG?Math.PI:Number(Math.PI.toFixed(d));
+const piStr=d=>d>=NDG?"3.14159…":piOf(d).toFixed(d);
+const omegaOf=d=>2*piOf(d)/TM;
+const cache={},errs=[];
+let truth,pln,rot,tNow,tEnd,tPeri,running=true,last=0,done=false,range=4500,wa=W_TRUE;
+
+function solve(d){
+  if(!cache[d]){
+    const b=plan(omegaOf(d)),r=fly(W_TRUE,b,false,true,0);
+    cache[d]={b};
+    errs[d]=Math.abs(signedMiss(r)-(R_M+ALT));
+  }
+  return cache[d];
+}
+function warm(d){
+  if(d>NDG)return;
+  solve(d);drawChart();setTimeout(()=>warm(d+1),0);
+}
+
+$("dg").oninput=()=>{P.dg=+$("dg").value;$("dgv").textContent=piStr(P.dg);init();if(!running)setRun(true)};
+$("sp").oninput=()=>{P.sp=+$("sp").value;$("spv").textContent=P.sp.toFixed(1)};
+
+function init(){
+  wa=omegaOf(P.dg);
+  const c=solve(P.dg);
+  truth=fly(W_TRUE,c.b,true,true,AFTER);
+  pln=fly(wa,c.b,true,false,AFTER);
+  const T=truth.P.t;
+  tEnd=T[T.length-1];
+  tPeri=truth.found?truth.found.t:tEnd;
+  rot=-W_TRUE*tPeri;
+  const dT=truth.found?truth.found.d:truth.gmin,dP=pln.found?pln.found.d:pln.gmin;
+  range=Math.max(4500,1.3*Math.max(dT,dP));
+  tNow=0;done=false;
+  $("pi").textContent=piStr(P.dg);
+  $("msg").textContent="";$("msg").className="";
+  record();draw();
+}
+// indice dell'ultimo campione con t <= tt
+function idx(T,tt){
+  let a=0,b=T.length-1;
+  while(a<b){const m=(a+b+1)>>1;if(T[m]<=tt)a=m;else b=m-1}
+  return a;
+}
+function record(){
+  const i=idx(truth.P.t,tNow);
+  $("t").textContent=(tNow/DAY).toFixed(2);
+  $("dl").textContent=Math.round(Math.hypot(truth.P.rx[i],truth.P.ry[i])).toLocaleString("it-IT");
+}
+function finish(){
+  done=true;
+  const f=truth.found,alt=(f?f.d:truth.gmin)-R_M,err=Math.abs(alt-ALT),m=$("msg");
+  const eMoon=Math.round(DM*Math.abs(W_TRUE-wa)*tPeri).toLocaleString("it-IT");
+  const tail=" Luna prevista fuori di "+eMoon+" km.";
+  if(truth.res==="moon"){m.textContent="Impatto sulla Luna invece del passaggio a "+ALT+" km."+tail;m.className=""}
+  else if(err<=TOL){m.textContent="Successo: passaggio a "+alt.toFixed(1)+" km di quota (obiettivo "+ALT+" ± "+TOL+" km)."+tail;m.className="ok"}
+  else{m.textContent="Obiettivo mancato: passaggio a "+Math.round(alt).toLocaleString("it-IT")+" km di quota invece di "+ALT+" km."+tail;m.className=""}
+  setRun(false);
+}
+function frame(now){
+  if(!running)return;
+  const dt=Math.min(.1,(now-last)/1000);last=now;
+  const i=idx(truth.P.t,tNow),dm=Math.hypot(truth.P.rx[i],truth.P.ry[i]);
+  tNow+=dt*P.sp*DAY*(dm<40000?.12:1);
+  if(tNow>=tEnd){tNow=tEnd;record();draw();finish();return}
+  record();draw();requestAnimationFrame(frame);
+}
+function setRun(r){
+  running=r;$("pp").textContent=r?"Pausa":"Avvia";
+  if(r){if(done)init();last=performance.now();requestAnimationFrame(frame)}
+}
+$("pp").onclick=()=>setRun(!running);
+$("rs").onclick=()=>{init();if(!running)setRun(true)};
+
+function col(n){return getComputedStyle(document.documentElement).getPropertyValue(n).trim()}
+function sizeCanvas(c,x){
+  const d=window.devicePixelRatio||1,w=c.clientWidth,h=c.clientHeight;
+  if(c.width!==Math.round(w*d)||c.height!==Math.round(h*d)){c.width=Math.round(w*d);c.height=Math.round(h*d)}
+  x.setTransform(d,0,0,d,0,0);return[w,h];
+}
+function draw(){
+  if(!truth)return;
+  const[w,h]=sizeCanvas(map,mc);
+  const bob=col("--bob"),ok=col("--ok"),earth=col("--earth"),moon=col("--moon"),mut=col("--mut"),line=col("--line"),card=col("--card");
+  mc.fillStyle=col("--sea");mc.fillRect(0,0,w,h);
+  const s=w*.8/DM,ex=w*.1,ey=h*.55,cr=Math.cos(rot),sr=Math.sin(rot);
+  const X=(x,y)=>ex+s*(x*cr-y*sr),Y=(x,y)=>ey-s*(x*sr+y*cr);
+  const it=idx(truth.P.t,tNow),TP=truth.P,PP=pln.P;
+  mc.font="11px system-ui,sans-serif";mc.textAlign="center";
+  mc.strokeStyle=line;mc.lineWidth=1;mc.setLineDash([2,4]);
+  mc.beginPath();mc.arc(ex,ey,DM*s,0,2*Math.PI);mc.stroke();
+  mc.setLineDash([5,4]);mc.strokeStyle=ok;mc.lineWidth=1.5;mc.beginPath();
+  for(let i=0;i<PP.x.length;i++){const px=X(PP.x[i],PP.y[i]),py=Y(PP.x[i],PP.y[i]);i?mc.lineTo(px,py):mc.moveTo(px,py)}
+  mc.stroke();mc.setLineDash([]);
+  mc.strokeStyle=bob;mc.lineWidth=2;mc.beginPath();
+  for(let i=0;i<=it;i++){const px=X(TP.x[i],TP.y[i]),py=Y(TP.x[i],TP.y[i]);i?mc.lineTo(px,py):mc.moveTo(px,py)}
+  mc.stroke();
+  mc.fillStyle=earth;mc.beginPath();mc.arc(ex,ey,Math.max(5,R_E*s),0,2*Math.PI);mc.fill();
+  mc.fillStyle=mut;mc.fillText("Terra",ex,ey+18);
+  // Luna prevista dal pianificatore (cerchio tratteggiato) e Luna vera
+  const gm=wa*tNow,gx=X(DM*Math.cos(gm),DM*Math.sin(gm)),gy=Y(DM*Math.cos(gm),DM*Math.sin(gm));
+  const tm=W_TRUE*tNow,mx=X(DM*Math.cos(tm),DM*Math.sin(tm)),my=Y(DM*Math.cos(tm),DM*Math.sin(tm));
+  mc.strokeStyle=ok;mc.setLineDash([3,3]);mc.lineWidth=1.5;mc.beginPath();mc.arc(gx,gy,7,0,2*Math.PI);mc.stroke();mc.setLineDash([]);
+  mc.fillStyle=moon;mc.beginPath();mc.arc(mx,my,Math.max(4,R_M*s),0,2*Math.PI);mc.fill();
+  mc.fillStyle=mut;mc.fillText("Luna",mx,my+16);
+  const j=Math.max(0,it-1),k=Math.min(TP.x.length-1,it+1);
+  const ang=Math.atan2(Y(TP.x[k],TP.y[k])-Y(TP.x[j],TP.y[j]),X(TP.x[k],TP.y[k])-X(TP.x[j],TP.y[j]));
+  mc.save();mc.translate(X(TP.x[it],TP.y[it]),Y(TP.x[it],TP.y[it]));mc.rotate(ang);mc.fillStyle=bob;
+  mc.beginPath();mc.moveTo(7,0);mc.lineTo(-5,4);mc.lineTo(-3,0);mc.lineTo(-5,-4);mc.closePath();mc.fill();mc.restore();
+  // riquadro: Luna da vicino, nel sistema di riferimento della Luna
+  const iw=Math.min(w*.4,260),ih=Math.min(h*.45,iw*.8),ix=w-iw-8,iy=8,cx=ix+iw/2,cy=iy+ih/2,sc=Math.min(iw,ih)/2*.9/range;
+  mc.save();mc.beginPath();mc.rect(ix,iy,iw,ih);mc.clip();
+  mc.fillStyle=card;mc.fillRect(ix,iy,iw,ih);
+  const RX=(x,y)=>cx+sc*(x*cr-y*sr),RY=(x,y)=>cy-sc*(x*sr+y*cr);
+  mc.fillStyle=moon;mc.beginPath();mc.arc(cx,cy,R_M*sc,0,2*Math.PI);mc.fill();
+  mc.strokeStyle=ok;mc.lineWidth=1.5;mc.setLineDash([3,3]);mc.beginPath();mc.arc(cx,cy,(R_M+ALT)*sc,0,2*Math.PI);mc.stroke();
+  mc.beginPath();
+  for(let i=0;i<PP.rx.length;i++){const px=RX(PP.rx[i],PP.ry[i]),py=RY(PP.rx[i],PP.ry[i]);i?mc.lineTo(px,py):mc.moveTo(px,py)}
+  mc.stroke();mc.setLineDash([]);
+  mc.strokeStyle=bob;mc.lineWidth=2;mc.beginPath();
+  for(let i=0;i<=it;i++){const px=RX(TP.rx[i],TP.ry[i]),py=RY(TP.rx[i],TP.ry[i]);i?mc.lineTo(px,py):mc.moveTo(px,py)}
+  mc.stroke();
+  mc.fillStyle=bob;mc.beginPath();mc.arc(RX(TP.rx[it],TP.ry[it]),RY(TP.rx[it],TP.ry[it]),3,0,2*Math.PI);mc.fill();
+  mc.fillStyle=mut;mc.textAlign="left";mc.fillText("Luna da vicino (±"+Math.round(range).toLocaleString("it-IT")+" km)",ix+6,iy+14);
+  mc.restore();
+  mc.strokeStyle=line;mc.lineWidth=1;mc.strokeRect(ix+.5,iy+.5,iw-1,ih-1);
+  drawChart();
+}
+function drawChart(){
+  const[w,h]=sizeCanvas(ch,cc);cc.clearRect(0,0,w,h);
+  const pl=64,pb=18,pt=8,pr=8,pw=w-pl-pr,ph=h-pt-pb,LMIN=-2,LMAX=4;
+  const Y=e=>pt+ph*(1-(Math.min(LMAX,Math.max(LMIN,Math.log10(Math.max(e,1e-9))))-LMIN)/(LMAX-LMIN));
+  const Xp=i=>pl+pw*(i+.5)/(NDG+1);
+  cc.strokeStyle=col("--line");cc.fillStyle=col("--mut");cc.font="11px system-ui,sans-serif";cc.lineWidth=1;
+  cc.textAlign="right";
+  for(let l=LMIN;l<=LMAX;l+=2){const y=Y(Math.pow(10,l));cc.beginPath();cc.moveTo(pl,y);cc.lineTo(w-pr,y);cc.stroke();
+    cc.fillText(Math.pow(10,l).toLocaleString("it-IT")+" km",pl-4,y+4)}
+  cc.textAlign="center";
+  for(let i=0;i<=NDG;i++)cc.fillText(i,Xp(i),h-4);
+  cc.strokeStyle=col("--ok");cc.setLineDash([4,3]);cc.lineWidth=1.5;cc.beginPath();cc.moveTo(pl,Y(TOL));cc.lineTo(w-pr,Y(TOL));cc.stroke();cc.setLineDash([]);
+  cc.strokeStyle=col("--bob");cc.lineWidth=2;cc.beginPath();let first=true;
+  for(let i=0;i<=NDG;i++){if(errs[i]===undefined)continue;first?cc.moveTo(Xp(i),Y(errs[i])):cc.lineTo(Xp(i),Y(errs[i]));first=false}
+  cc.stroke();
+  for(let i=0;i<=NDG;i++){if(errs[i]===undefined)continue;
+    cc.fillStyle=errs[i]<=TOL?col("--ok"):col("--bob");
+    cc.beginPath();cc.arc(Xp(i),Y(errs[i]),i===P.dg?5:3,0,2*Math.PI);cc.fill();
+    if(i===P.dg){cc.strokeStyle=col("--fg");cc.lineWidth=1.5;cc.stroke()}}
+}
+new ResizeObserver(()=>draw()).observe($("mapw"));
+matchMedia("(prefers-color-scheme: dark)").addEventListener("change",draw);
+$("dgv").textContent=piStr(P.dg);
+init();last=performance.now();requestAnimationFrame(frame);
+setTimeout(()=>warm(0),50);
+</script>
+</body>
+</html>
