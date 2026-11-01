@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Incrocio: precedenza, semaforo o rotatoria</title>
+<style>
+:root{--bg:#fff;--fg:#1a1a1a;--mut:#666;--land:#e9f2e1;--island:#cfe3c0;--road:#c4c6cc;--box:#b4b7be;--dash:#fff;--go:#1d9e75;--wait:#d85a30;
+--c0:#378add;--c1:#e0a000;--c2:#8e5bd0;--card:#f5f5f3;--line:#d8d8d4;color-scheme:light;
+box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root{--bg:#16181c;--fg:#eee;--mut:#9a9a9a;--land:#14231a;--island:#1d3326;--road:#3a3e46;--box:#464a53;--dash:#8a8f99;--go:#5dcaa5;--wait:#f0997b;
+--c0:#85b7eb;--c1:#f0c14b;--c2:#b79df0;--card:#1f2228;--line:#333;color-scheme:dark}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.4 system-ui,-apple-system,"Segoe UI",sans-serif}
+main{max-width:1280px;margin:0 auto;padding:16px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+h1{font-size:20px;margin:0 0 2px}
+p.s{margin:0 0 12px;color:var(--mut);font-size:13px}
+#panels{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:12px}
+.panel{min-width:0;background:var(--card);border:1px solid var(--line);border-radius:8px;padding:8px}
+.panel h2{font-size:15px;margin:0 0 6px;display:flex;align-items:center}
+.cw{min-width:0}
+canvas{display:block;border-radius:6px}
+.map{margin:0 auto;box-shadow:0 0 0 1px var(--line);image-rendering:pixelated}
+.dot{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:6px;flex:none}
+.stats{display:flex;gap:4px 14px;flex-wrap:wrap;margin-top:6px;font-size:13px;color:var(--mut)}
+.stats b{color:var(--fg)}
+#msg{min-height:20px;margin:10px 0 0;font-size:13px}
+.bottom{display:grid;grid-template-columns:1fr;gap:12px;margin-top:6px}
+@media (min-width:900px){.bottom{grid-template-columns:minmax(0,1fr) minmax(0,1fr);align-items:start}}
+#chart{width:100%;height:170px;background:var(--card);border:1px solid var(--line);border-radius:8px}
+.leg{display:flex;gap:14px;flex-wrap:wrap;font-size:12px;color:var(--mut);margin:6px 0 0}
+.leg span{display:flex;align-items:center}
+.row{display:flex;gap:8px;flex-wrap:wrap;margin:10px 0}
+button{background:var(--card);color:var(--fg);border:1px solid var(--line);border-radius:8px;padding:8px 14px;font:inherit;cursor:pointer}
+.ctl{display:grid;grid-template-columns:1fr;gap:6px;font-size:13px;color:var(--mut)}
+.ctl label{display:flex;align-items:center;gap:8px}
+.ctl span:first-child{width:150px;flex:none}
+.ctl input{flex:1;min-width:0}
+.ctl b{width:30px;text-align:right;color:var(--fg)}
+.rules{padding:10px 12px;background:var(--card);border:1px solid var(--line);border-radius:8px;font-size:13px;color:var(--mut)}
+.rules h2{font-size:14px;margin:0 0 6px;color:var(--fg)}
+.rules p{margin:0 0 6px}
+.rules ul{margin:0 0 6px;padding-left:18px}
+.rules li{margin-bottom:3px}
+.rules :last-child{margin-bottom:0}
+</style>
+</head>
+<body>
+<main>
+<header>
+<h1>Incrocio: precedenza, semaforo o rotatoria</h1>
+<p class="s">Tre incroci identici ricevono esattamente lo stesso traffico, auto per auto. Cambia solo la regola con cui si attraversa: scopri quale smaltisce meglio le code.</p>
+</header>
+<div id="panels"></div>
+<div id="msg"></div>
+<div class="bottom">
+<div>
+<canvas id="chart"></canvas>
+<div class="leg" id="leg"></div>
+<div class="row">
+<button id="pp">Pausa</button><button id="st">Passo</button><button id="rs">Nuova simulazione</button>
+</div>
+<div class="ctl">
+<label><span>Velocità (passi/s)</span><input id="sp" type="range" min="1" max="60" value="10"><b id="spv">10</b></label>
+<label><span>Traffico (%)</span><input id="tr" type="range" min="1" max="30" value="12"><b id="trv">12</b></label>
+<label><span>Svolte (%)</span><input id="tn" type="range" min="0" max="100" value="40" step="5"><b id="tnv">40</b></label>
+<label><span>Verde semaforo</span><input id="gr" type="range" min="4" max="40" value="14"><b id="grv">14</b></label>
+</div>
+</div>
+<section class="rules">
+<h2>Regole</h2>
+<p>Ogni incrocio è una griglia con due strade a doppio senso. Le auto avanzano di una cella per passo, si fermano se la cella davanti è occupata e sono <b style="color:var(--go)">verdi</b> quando si muovono, <b style="color:var(--wait)">arancioni</b> quando sono ferme. A ogni passo, su ciascuno dei 4 rami, arriva un'auto con probabilità pari a "Traffico"; le stesse auto (con la stessa direzione) arrivano in tutti e tre gli incroci.</p>
+<ul>
+<li><b>Precedenza a destra</b>: un'auto entra nell'incrocio solo se non c'è, ferma alla linea di arresto, un'auto da destra che attraverserebbe la sua stessa traiettoria. Se tutti si aspettano a vicenda, dopo un po' qualcuno si azzarda a partire. Nell'incrocio ci sono al massimo 3 auto contemporaneamente.</li>
+<li><b>Semaforo</b>: verde alternato tra i due assi, con un giallo di 3 passi in cui non si può più entrare. "Verde semaforo" regola la durata della fase.</li>
+<li><b>Rotatoria</b>: l'anello è percorso in senso antiorario. Chi arriva dà precedenza a chi sta già girando (cella a monte occupata), poi esce al primo, al secondo o al terzo ingresso a seconda che giri a destra, vada dritto o giri a sinistra.</li>
+<li><b>Svolte</b>: percentuale di auto che girano (metà a destra, metà a sinistra); le altre vanno dritte.</li>
+</ul>
+<p>Il tempo fermo è il numero medio di passi in cui un'auto non si è mossa. A traffico basso le differenze sono piccole; aumentando il traffico le code crescono in modo molto diverso. Prova anche a cambiare la durata del verde.</p>
+</section>
+</div>
+</main>
+<script>
+const G=32,MODES=["cross","light","round"],NAMES=["Precedenza a destra","Semaforo","Rotatoria"];
+const $=id=>document.getElementById(id);
+const P={sp:10,tr:12,tn:40,gr:14};
+["sp","tr","tn","gr"].forEach(k=>{const el=$(k);el.oninput=()=>{P[k]=+el.value;$(k+"v").textContent=el.value}});
+const dpr=()=>window.devicePixelRatio||1;
+function col(n){return getComputedStyle(document.documentElement).getPropertyValue(n).trim()}
+
+// Rotazione oraria di 90° attorno al centro della griglia; i rami sono 0=Ovest, 1=Nord, 2=Est, 3=Sud
+const rot=([x,y],k)=>{for(;k>0;k--)[x,y]=[G-1-y,x];return[x,y]};
+const rotc=([x,y],k)=>{for(;k>0;k--)[x,y]=[G-y,x];return[x,y]};
+const id=([x,y])=>y*G+x;
+const range=(a,b)=>{const r=[],s=a<=b?1:-1;for(let v=a;v!==b+s;v+=s)r.push(v);return r};
+
+const RING=[...range(12,19).map(x=>[x,19]),...range(18,12).map(y=>[19,y]),...range(18,12).map(x=>[x,12]),...range(13,18).map(y=>[12,y])].map(id);
+const ringNext=new Map(),ringPrev=new Map();
+RING.forEach((c,i)=>{ringNext.set(c,RING[(i+1)%RING.length]);ringPrev.set(RING[(i+1)%RING.length],c)});
+const BOX=[[15,15],[16,15],[15,16],[16,16]].map(id);
+const TURN_DEST=[3,2,1]; // destra, dritto, sinistra (per il ramo Ovest)
+
+function buildPaths(mode){
+  const ring=mode==="round",n=ring?12:15,paths=[];
+  for(let a=0;a<4;a++){
+    paths[a]=[];
+    const appr=range(0,n-1).map(x=>id(rot([x,16],a)));
+    for(let t=0;t<3;t++){
+      const d=(a+TURN_DEST[t])%4;
+      const exit=range(n-1,0).map(x=>id(rot([x,15],d)));
+      let mid;
+      if(ring){
+        const from=id(rot([12,16],a)),to=id(rot([12,15],d));
+        mid=[from];while(mid[mid.length-1]!==to)mid.push(ringNext.get(mid[mid.length-1]));
+      }else{
+        mid=[[15,16],[16,16],[16,15]].slice(0,t===0?1:t===1?2:3).map(p=>id(rot(p,a)));
+      }
+      paths[a][t]={cells:[...appr,...mid,...exit],entry:appr.length,mid};
+    }
+  }
+  return paths;
+}
+
+let sims,tick,light,running=true,timer,hist;
+function makeSim(mode,i){
+  const paths=buildPaths(mode),road=new Uint8Array(G*G);
+  paths.flat().forEach(p=>p.cells.forEach(c=>road[c]=1));
+  return{mode,i,paths,road,cars:[],occ:new Array(G*G).fill(null),pend:[[],[],[],[]],done:0,stopped:0,queue:0,
+    line:[0,1,2,3].map(a=>paths[a][1].cells[paths[a][1].entry-1])};
+}
+
+function init(){
+  sims=MODES.map(makeSim);tick=0;light={phase:0,t:0};hist=sims.map(()=>[]);
+  $("msg").textContent="";
+  updateStats();draw();
+}
+const green=a=>a%2===0?light.phase===0:light.phase===2;
+const boxCount=s=>BOX.reduce((n,c)=>n+(s.occ[c]?1:0),0);
+const conflict=(p,q)=>p.mid.some(c=>q.mid.includes(c));
+
+function canEnter(s,c){
+  const p=c.path;
+  if(s.mode==="round")return !s.occ[ringPrev.get(p.cells[c.i+1])];
+  if(boxCount(s)>=3)return false;
+  if(s.mode==="light")return green(c.a);
+  const r=s.occ[s.line[(c.a+3)%4]];
+  if(r&&conflict(p,r.path)){c.yf=true;return c.yw>=4&&c.rnd<.35}
+  return true;
+}
+function tryMove(s,c){
+  const cells=c.path.cells;
+  if(c.i===cells.length-1){s.occ[cells[c.i]]=null;c.gone=c.moved=true;s.done++;s.stopped+=c.stopped;return true}
+  const n=cells[c.i+1];
+  if(s.occ[n])return false;
+  if(c.i+1===c.path.entry&&!canEnter(s,c))return false;
+  s.occ[cells[c.i]]=null;s.occ[n]=c;c.i++;c.moved=true;return true;
+}
+function stepSim(s,arr){
+  arr.forEach(([a,t])=>s.pend[a].push({a,t,path:s.paths[a][t],i:0,stopped:0,yw:0}));
+  s.cars.forEach(c=>{c.moved=false;c.yf=false;c.rnd=Math.random()});
+  const order=s.cars.slice();
+  for(let i=order.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[order[i],order[j]]=[order[j],order[i]]}
+  let changed;
+  do{changed=false;for(const c of order)if(!c.moved&&tryMove(s,c))changed=true}while(changed);
+  s.cars=s.cars.filter(c=>!c.gone);
+  let q=0;
+  s.cars.forEach(c=>{c.yw=c.yf?c.yw+1:0;if(!c.moved){c.stopped++;q++}});
+  for(let a=0;a<4;a++){
+    const w=s.pend[a],cell=s.paths[a][0].cells[0];
+    if(w.length&&!s.occ[cell]){const c=w.shift();c.moved=true;s.occ[cell]=c;s.cars.push(c)}
+    w.forEach(c=>c.stopped++);q+=w.length;
+  }
+  s.queue=q;
+}
+function step(){
+  tick++;
+  if(++light.t>=(light.phase%2===0?P.gr:3)){light.t=0;light.phase=(light.phase+1)%4}
+  const arr=[],pt=P.tn/200;
+  for(let a=0;a<4;a++)if(Math.random()<P.tr/100){const r=Math.random();arr.push([a,r<pt?0:r<2*pt?2:1])}
+  sims.forEach((s,i)=>{stepSim(s,arr);hist[i].push(s.queue);if(hist[i].length>1200)hist[i].shift()});
+  updateStats();draw();verdict();
+}
+function verdict(){
+  if(tick<150){$("msg").textContent="";return}
+  const m=hist.map(h=>{const r=h.slice(-200);return r.reduce((x,y)=>x+y,0)/r.length});
+  const b=m.indexOf(Math.min(...m));
+  $("msg").innerHTML="Ultimi 200 passi, auto ferme in media: "+NAMES.map((n,i)=>(i===b?"<b>":"")+n+" "+m[i].toFixed(1)+(i===b?"</b>":"")).join(" · ")+".";
+}
+
+const panels=MODES.map((m,i)=>{
+  const d=document.createElement("div");d.className="panel";
+  d.innerHTML=`<h2><i class="dot" style="background:var(--c${i})"></i>${NAMES[i]}</h2><div class="cw"><canvas class="map" width="${G*10}" height="${G*10}"></canvas></div>
+<div class="stats"><span>Passate: <b data-k="d">0</b></span><span>Ferme ora: <b data-k="q">0</b></span><span>Tempo fermo medio: <b data-k="w">0</b></span></div>`;
+  $("panels").appendChild(d);
+  const cv=d.querySelector("canvas");
+  return{cw:d.querySelector(".cw"),cv,cx:cv.getContext("2d"),S:10,el:k=>d.querySelector(`[data-k=${k}]`)};
+});
+$("leg").innerHTML=NAMES.map((n,i)=>`<span><i class="dot" style="background:var(--c${i})"></i>${n}</span>`).join("")+"<span>Auto ferme nel tempo</span>";
+const ch=$("chart"),cc=ch.getContext("2d");
+
+function updateStats(){
+  sims.forEach((s,i)=>{
+    const p=panels[i];p.el("d").textContent=s.done;p.el("q").textContent=s.queue;
+    p.el("w").textContent=s.done?(s.stopped/s.done).toFixed(1):"0";
+  });
+}
+function drawSim(s,p){
+  const x=p.cx,S=p.S,land=col("--land"),road=col("--road"),box=col("--box");
+  x.fillStyle=land;x.fillRect(0,0,G*S,G*S);
+  x.fillStyle=road;
+  for(let i=0;i<G*G;i++)if(s.road[i])x.fillRect((i%G)*S,((i/G)|0)*S,S,S);
+  if(s.mode==="round"){
+    x.fillStyle=col("--island");x.beginPath();x.arc(G*S/2,G*S/2,3*S,0,7);x.fill();
+  }else{
+    x.fillStyle=box;BOX.forEach(c=>x.fillRect((c%G)*S,((c/G)|0)*S,S,S));
+  }
+  const n=s.mode==="round"?12:15;
+  x.strokeStyle=col("--dash");x.lineWidth=Math.max(1,S/8);x.setLineDash([S*.5,S*.5]);
+  x.beginPath();
+  for(const [a,b] of [[0,n],[G-n,G]]){x.moveTo(a*S,G/2*S);x.lineTo(b*S,G/2*S);x.moveTo(G/2*S,a*S);x.lineTo(G/2*S,b*S)}
+  x.stroke();
+  x.lineWidth=Math.max(1.5,S/5);x.setLineDash(s.mode==="light"?[]:[S*.25,S*.25]);
+  for(let a=0;a<4;a++){
+    const [x1,y1]=rotc([n,16],a),[x2,y2]=rotc([n,17],a);
+    x.beginPath();x.moveTo(x1*S,y1*S);x.lineTo(x2*S,y2*S);x.stroke();
+  }
+  x.setLineDash([]);
+  if(s.mode==="light"){
+    for(let a=0;a<4;a++){
+      const [lx,ly]=rot([14,17],a),g=green(a),y=light.phase%2===1&&(a%2===0)===(light.phase===1);
+      x.fillStyle=g?"#2fbf71":y?"#f2c230":"#e5484d";
+      x.beginPath();x.arc((lx+.5)*S,(ly+.5)*S,S*.45,0,7);x.fill();
+    }
+  }
+  const go=col("--go"),wait=col("--wait"),pad=S>=4?1:0;
+  s.cars.forEach(c=>{
+    const k=c.path.cells[c.i];x.fillStyle=c.moved?go:wait;
+    x.fillRect((k%G)*S+pad,((k/G)|0)*S+pad,S-2*pad,S-2*pad);
+  });
+}
+function drawChart(){
+  const d=dpr(),w=ch.clientWidth,h=ch.clientHeight;
+  if(ch.width!==Math.round(w*d)){ch.width=Math.round(w*d);ch.height=Math.round(h*d)}
+  cc.setTransform(d,0,0,d,0,0);cc.clearRect(0,0,w,h);
+  const mx=Math.max(5,...hist.flat()),pl=34,pb=18,pt=8,pr=8,pw=w-pl-pr,ph=h-pt-pb;
+  cc.strokeStyle=col("--line");cc.fillStyle=col("--mut");cc.font="11px system-ui,sans-serif";cc.lineWidth=1;
+  for(let k=0;k<=2;k++){const y=pt+ph*k/2;cc.beginPath();cc.moveTo(pl,y);cc.lineTo(w-pr,y);cc.stroke();
+    cc.textAlign="right";cc.fillText(Math.round(mx*(1-k/2)),pl-4,y+4)}
+  const len=hist[0].length;
+  cc.textAlign="left";cc.fillText(tick-len+1,pl,h-4);cc.textAlign="right";cc.fillText(tick,w-pr,h-4);
+  hist.forEach((a,i)=>{cc.strokeStyle=col("--c"+i);cc.lineWidth=2;cc.beginPath();
+    a.forEach((v,j)=>{const x=pl+pw*(len>1?j/(len-1):0),y=pt+ph*(1-v/mx);j?cc.lineTo(x,y):cc.moveTo(x,y)});cc.stroke()});
+}
+function draw(){sims.forEach((s,i)=>drawSim(s,panels[i]));drawChart()}
+
+function loop(){clearTimeout(timer);if(!running)return;step();timer=setTimeout(loop,1000/P.sp)}
+function setRun(r){running=r;$("pp").textContent=r?"Pausa":"Avvia";if(r)loop();else clearTimeout(timer)}
+$("pp").onclick=()=>setRun(!running);
+$("st").onclick=()=>{setRun(false);step()};
+$("rs").onclick=()=>{init();if(!running)setRun(true)};
+function fit(){
+  const d=dpr();
+  panels.forEach(p=>{
+    const S=Math.max(1,Math.floor(p.cw.clientWidth*d/G));
+    if(S===p.S&&p.cv.width===G*S)return;
+    p.S=S;p.cv.width=p.cv.height=G*S;p.cv.style.width=p.cv.style.height=G*S/d+"px";
+  });
+}
+const redraw=()=>{fit();draw()};
+panels.forEach(p=>new ResizeObserver(redraw).observe(p.cw));
+addEventListener("resize",redraw);
+matchMedia("(prefers-color-scheme: dark)").addEventListener("change",draw);
+fit();init();loop();
+</script>
+</body>
+</html>
