@@ -9,3 +9,4 @@ Apri [`index.html`](index.html) per la pagina principale con i link alle simulaz
 - [Pendolo](pendolo/pendolo.html)
 - [Razzo verso la Luna](razzoluna/razzo-luna.html)
 - [Come funziona un LLM](llm/llm.html)
+- [Incrocio stradale](incrocio/incrocio.html)
