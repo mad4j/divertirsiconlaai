@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Jumanji</title>
+<style>
+:root{--bg:#fff;--fg:#1a1a1a;--mut:#666;--land:#f1ead6;--water:#5bc8f5;--plant:#2e9e44;--lion:#f08a1c;--hyena:#111;--hyenaLine:#111;--giraffe:#e6b800;--card:#f5f5f3;--line:#d8d8d4;--warn:#d85a30;color-scheme:light;
+box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#16181c;--fg:#eee;--mut:#9a9a9a;--land:#5c5a48;--water:#7fd3ff;--plant:#5dcb6a;--lion:#f59a4a;--hyena:#000;--hyenaLine:#c8c8c8;--giraffe:#ffd633;--card:#1f2228;--line:#333;--warn:#f0997b;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#16181c;--fg:#eee;--mut:#9a9a9a;--land:#5c5a48;--water:#7fd3ff;--plant:#5dcb6a;--lion:#f59a4a;--hyena:#000;--hyenaLine:#c8c8c8;--giraffe:#ffd633;--card:#1f2228;--line:#333;--warn:#f0997b;color-scheme:dark}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.4 system-ui,-apple-system,"Segoe UI",sans-serif}
+main{max-width:720px;margin:0 auto;padding:16px}
+h1{font-size:20px;margin:0 0 2px}
+p.s{margin:0 0 12px;color:var(--mut);font-size:13px}
+canvas{display:block;width:100%;border-radius:8px;border:1px solid var(--line)}
+#mapw{min-width:0}
+#map{width:auto;border:0;box-shadow:0 0 0 1px var(--line);image-rendering:pixelated;background:var(--land)}
+.chart{height:90px;margin-top:8px;background:var(--card)}
+.stats{display:flex;gap:6px 14px;flex-wrap:wrap;margin:10px 0;font-size:14px}
+.dot{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:5px;box-shadow:0 0 0 1px var(--line)}
+.row{display:flex;gap:8px;flex-wrap:wrap;margin:10px 0}
+button{background:var(--card);color:var(--fg);border:1px solid var(--line);border-radius:8px;padding:8px 14px;font:inherit;cursor:pointer}
+.ctl{display:grid;grid-template-columns:1fr;gap:6px;margin-top:8px;font-size:13px;color:var(--mut)}
+.ctl label{display:flex;align-items:center;gap:8px}
+.ctl span:first-child{width:150px;flex:none}
+.ctl input{flex:1;min-width:0}
+.ctl b{width:26px;text-align:right;color:var(--fg)}
+.rules{margin-top:12px;padding:10px 12px;background:var(--card);border:1px solid var(--line);border-radius:8px;font-size:13px;color:var(--mut)}
+.rules h2{font-size:14px;margin:0 0 6px;color:var(--fg)}
+.rules p{margin:0 0 6px}
+.rules ul{margin:0 0 6px;padding-left:18px}
+.rules li{margin-bottom:3px}
+.rules :last-child{margin-bottom:0}
+#msg{color:var(--warn);font-size:13px;min-height:18px}
+@media (min-width:900px),(min-width:600px) and (min-aspect-ratio:1/1){
+main{max-width:1280px;padding:10px 16px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));
+display:grid;grid-template-columns:min(60%,calc((100vh - 90px)*1.5)) minmax(240px,1fr);column-gap:16px;align-items:start}
+header{grid-column:1/-1}
+p.s{margin-bottom:8px}
+.side{min-width:0}
+.side .stats{margin-top:0}
+}
+@media (max-height:520px) and (min-width:600px){
+main{padding-top:6px;padding-bottom:6px;grid-template-columns:min(60%,calc((100vh - 48px)*1.5)) minmax(240px,1fr)}
+h1{font-size:16px}
+p.s{display:none}
+.side .stats{margin:0 0 4px;gap:2px 10px}
+#msg{min-height:0}
+#msg:empty{display:none}
+.chart{height:56px;margin-top:4px}
+.row{margin:6px 0}
+button{padding:5px 12px}
+.ctl{gap:3px;margin-top:4px}
+.ctl span:first-child{width:130px}
+}
+</style>
+</head>
+<body>
+<main>
+<header>
+<h1>Jumanji</h1>
+<p class="s">Simulazione di una savana toroidale con laghi: le piante crescono, le giraffe le brucano e leoni e iene danno la caccia a tutti gli altri animali.</p>
+</header>
+<div id="mapw"><canvas id="map" width="600" height="400"></canvas></div>
+<div class="side">
+<div class="stats">
+<span>Generazione: <b id="g">0</b></span>
+<span><i class="dot" style="background:var(--plant)"></i>Piante: <b id="n1">0</b></span>
+<span><i class="dot" style="background:var(--giraffe)"></i>Giraffe: <b id="n2">0</b></span>
+<span><i class="dot" style="background:var(--lion)"></i>Leoni: <b id="n3">0</b></span>
+<span><i class="dot" style="background:var(--hyena)"></i>Iene: <b id="n4">0</b></span>
+<span><i class="dot" style="background:var(--water)"></i>Acqua: <b id="nw">100</b>%</span>
+</div>
+<div id="msg"></div>
+<canvas id="cp" class="chart"></canvas>
+<canvas id="ca" class="chart"></canvas>
+<div class="row">
+<button id="pp">Pausa</button><button id="st">Passo</button><button id="rs">Nuovo mondo</button>
+</div>
+<div class="ctl">
+<label><span>Velocità (gen/s)</span><input id="sp" type="range" min="1" max="60" value="15"><b id="spv">15</b></label>
+<label><span>Crescita piante (%)</span><input id="pg" type="range" min="1" max="100" value="70"><b id="pgv">70</b></label>
+<label><span>Riproduzione giraffe</span><input id="bg" type="range" min="2" max="15" value="4"><b id="bgv">4</b></label>
+<label><span>Riproduzione leoni</span><input id="bl" type="range" min="3" max="25" value="12"><b id="blv">12</b></label>
+<label><span>Riproduzione iene</span><input id="bh" type="range" min="3" max="25" value="12"><b id="bhv">12</b></label>
+<label><span>Energia per preda</span><input id="ge" type="range" min="1" max="10" value="3"><b id="gev">3</b></label>
+<label><span>Energia massima</span><input id="me" type="range" min="4" max="40" value="24"><b id="mev">24</b></label>
+<label><span>Energia dall'acqua</span><input id="wa" type="range" min="1" max="20" value="6"><b id="wav">6</b></label>
+<label><span>Durata piante (gen)</span><input id="pl" type="range" min="5" max="100" value="40"><b id="plv">40</b></label>
+</div>
+<section class="rules">
+<h2>Regole</h2>
+<p>Il mondo è una griglia toroidale: ogni cella ha 4 vicine (su, giù, sinistra, destra) e i bordi si ricongiungono. A ogni generazione gli individui agiscono uno alla volta, in ordine casuale.</p>
+<ul>
+<li><b>Acqua</b> (celeste): laghi fissi, impenetrabili, ognuno con una riserva al 100%. Chi sta per morire (energia a 0 per gli animali, durata esaurita per le piante) e ha un lago in una cella vicina beve e continua a vivere: l'animale recupera "Energia dall'acqua", la pianta ricomincia la sua durata. Ogni bevuta toglie l'1% di riserva al lago e, quando arriva a 0%, il lago si asciuga. Gli animali con poca energia e senza nulla da attaccare si dirigono verso il lago più vicino. Il valore "Acqua" è la riserva media dei laghi iniziali.</li>
+<li><b>Piante</b> (verdi): non si muovono, hanno energia 1 e con una certa probabilità si diffondono in una cella vicina libera. Seccano dopo "Durata piante" generazioni, a meno che siano vicine all'acqua.</li>
+<li><b>Giraffe</b> (gialle): mangiano le piante. Si muovono in una cella vicina libera e si riproducono quando raggiungono l'età impostata.</li>
+<li><b>Leoni</b> (arancioni) e <b>iene</b> (nere): sono predatori. Mangiano le giraffe e anche i predatori dell'altra specie, mai le piante né i propri simili. Se non c'è nulla da attaccare, si muovono verso la cella vicina con più prede intorno, calpestando eventuali piante.</li>
+<li><b>Energia</b>: le giraffe perdono 1 energia a ogni generazione, i predatori in media 1 ogni 3 (metabolismo più lento). A 0 si muore. Mangiare una preda dà la sua energia più "Energia per preda"; l'energia di un individuo non supera mai "Energia massima".</li>
+<li><b>Attacco</b>: una preda viene mangiata solo se la somma delle energie di tutti i suoi attaccanti adiacenti (quelli che possono mangiarla) è maggiore della sua energia attuale. Chi sferra l'attacco si sposta nella cella della preda; gli altri attaccanti non si muovono.</li>
+<li><b>Riproduzione</b>: raggiunta l'età impostata e con almeno metà dell'energia massima, l'animale lascia un piccolo nella cella abbandonata, a cui cede metà della propria energia.</li>
+<li>Se un animale non può né mangiare né muoversi, resta fermo e invecchia.</li>
+</ul>
+<p>Le specie si regolano a vicenda: troppe piante fanno prosperare le giraffe, che sfamano i predatori, che a loro volta riducono le giraffe. Quando una specie si estingue, l'equilibrio cambia.</p>
+</section>
+</div>
+</main>
+<script>
+const W=120,H=80,N=W*H,START_E=5;
+let S=5;
+const PL=1,GI=2,LI=3,HY=4,WA=5,PLANT_E=1,THIRST=3;
+const INIT={pl:.3,gi:.12,li:.01,hy:.01};
+const MP=1/3,MAX_GEN=1000;
+const NAMES=["","piante","giraffe","leoni","iene"];
+const CAN=[[],[],[],[],[],[]];
+for(let a=0;a<6;a++)for(let b=0;b<6;b++)CAN[a][b]=false;
+CAN[GI][PL]=true;CAN[LI][GI]=CAN[LI][HY]=true;CAN[HY][GI]=CAN[HY][LI]=true;
+const $=id=>document.getElementById(id);
+const map=$("map"),mc=map.getContext("2d");
+const cp=$("cp"),cpc=cp.getContext("2d"),ca=$("ca"),cac=ca.getContext("2d");
+let type,age,en,stamp,order,tick,hist,dist,lakeOf,level,lakeCount,running=true,timer;
+const P={pg:70,bg:4,bl:12,bh:12,ge:3,me:24,wa:6,pl:40,sp:15};
+Object.keys(P).forEach(k=>{const el=$(k);el.oninput=()=>{P[k]=+el.value;$(k+"v").textContent=el.value}});
+const breed=t=>t===GI?P.bg:t===LI?P.bl:P.bh;
+
+function makeLakes(){
+  for(let k=0;k<7;k++){
+    const cx=Math.random()*W,cy=Math.random()*H,rx=3+Math.random()*4,ry=3+Math.random()*4;
+    for(let dy=-8;dy<=8;dy++)for(let dx=-8;dx<=8;dx++)
+      if((dx/rx)**2+(dy/ry)**2<=1)type[((Math.round(cy)+dy+H)%H)*W+(Math.round(cx)+dx+W)%W]=WA;
+  }
+  // ogni gruppo di celle d'acqua connesse e' un lago con il proprio livello
+  lakeOf=new Int16Array(N).fill(-1);level=[];
+  for(let i=0;i<N;i++){
+    if(type[i]!==WA||lakeOf[i]>=0)continue;
+    const id=level.length,q=[i];level.push(100);lakeOf[i]=id;
+    for(let h=0;h<q.length;h++)for(const j of nb(q[h]))if(type[j]===WA&&lakeOf[j]<0){lakeOf[j]=id;q.push(j)}
+  }
+  lakeCount=level.length;
+  computeDist();
+}
+// distanza di ogni cella dall'acqua piu vicina (BFS sul toro)
+function computeDist(){
+  dist=new Uint8Array(N).fill(255);const q=[];
+  for(let i=0;i<N;i++)if(type[i]===WA){dist[i]=0;q.push(i)}
+  for(let h=0;h<q.length;h++){const i=q[h];for(const j of nb(i))if(dist[j]===255){dist[j]=dist[i]+1;q.push(j)}}
+}
+// beve da un lago vicino togliendogli l'1%; a 0% il lago si asciuga
+function drink(i){
+  const j=nb(i).find(k=>type[k]===WA);
+  if(j===undefined)return false;
+  const id=lakeOf[j];
+  if(--level[id]<=0){
+    for(let k=0;k<N;k++)if(lakeOf[k]===id){lakeOf[k]=-1;type[k]=0}
+    computeDist();
+  }
+  return true;
+}
+function init(){
+  type=new Uint8Array(N);age=new Uint16Array(N);en=new Int16Array(N);stamp=new Int32Array(N);
+  order=Array.from({length:N},(_,i)=>i);tick=0;hist=[[],[],[],[],[]];
+  makeLakes();
+  for(let i=0;i<N;i++){if(type[i]===WA)continue;const r=Math.random();let t=0;
+    if(r<INIT.pl)t=PL;else if(r<INIT.pl+INIT.gi)t=GI;else if(r<INIT.pl+INIT.gi+INIT.li)t=LI;else if(r<INIT.pl+INIT.gi+INIT.li+INIT.hy)t=HY;
+    if(!t)continue;
+    type[i]=t;
+    if(t===PL){en[i]=PLANT_E;age[i]=1+Math.floor(Math.random()*P.pl)}
+    else{en[i]=t===GI?Math.min(P.me,2+Math.floor(Math.random()*START_E)):P.me;age[i]=Math.floor(Math.random()*breed(t))}}
+  $("msg").textContent="";
+  record();draw();
+}
+function nb(i){const x=i%W,y=(i/W)|0;
+  return [y*W+(x+1)%W,y*W+(x+W-1)%W,((y+1)%H)*W+x,((y+H-1)%H)*W+x]}
+const pick=a=>a[Math.floor(Math.random()*a.length)];
+const energyOf=j=>type[j]===PL?PLANT_E:en[j];
+function attackPower(j){
+  let s=0;const tj=type[j];
+  for(const k of nb(j))if(CAN[type[k]][tj])s+=en[k];
+  return s;
+}
+
+function step(){
+  if(tick>=MAX_GEN)return;
+  tick++;
+  for(let i=N-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[order[i],order[j]]=[order[j],order[i]]}
+  for(const i of order){
+    const t=type[i];
+    if(!t||t===WA||stamp[i]===tick)continue;
+    const n=nb(i);
+    if(t===PL){
+      if(--age[i]<=0){
+        if(drink(i))age[i]=P.pl;
+        else{type[i]=0;continue}
+      }
+      if(Math.random()*100<P.pg){
+        const e=n.filter(j=>type[j]===0);
+        if(e.length){const j=pick(e);type[j]=PL;en[j]=PLANT_E;age[j]=P.pl;stamp[j]=tick}
+      }
+      continue;
+    }
+    if(t===GI||Math.random()<MP)en[i]--;
+    if(en[i]<=0){
+      if(drink(i))en[i]=P.wa;
+      else{type[i]=0;continue}
+    }
+    let target=-1;
+    const prey=n.filter(j=>CAN[t][type[j]]&&attackPower(j)>energyOf(j));
+    if(prey.length){target=pick(prey);en[i]=Math.min(P.me,en[i]+P.ge+energyOf(target))}
+    else{
+      const e=n.filter(j=>type[j]===0||(t!==GI&&type[j]===PL));
+      if(e.length){
+        if(en[i]<=THIRST){
+          if(dist[i]>1){
+            const m=Math.min(...e.map(j=>dist[j]));
+            target=pick(e.filter(j=>dist[j]===m));
+          }
+        }else if(t===GI)target=pick(e);
+        else{
+          const sc=e.map(j=>nb(j).reduce((s,k)=>s+(CAN[t][type[k]]&&type[k]!==PL?1:0),0)),m=Math.max(...sc);
+          target=pick(e.filter((_,k)=>sc[k]===m));
+        }
+      }
+    }
+    let cur=i,moved=false;
+    if(target>=0){
+      type[target]=t;age[target]=age[i]+1;en[target]=en[i];stamp[target]=tick;
+      type[i]=0;cur=target;moved=true;
+    }else{age[i]++;stamp[i]=tick}
+    if(moved&&age[cur]>=breed(t)&&en[cur]>=Math.max(2,P.me/2)){
+      const ce=en[cur]>>1;en[cur]-=ce;
+      age[cur]=0;type[i]=t;age[i]=0;en[i]=ce;stamp[i]=tick;
+    }
+  }
+  record();draw();
+  const c=[1,2,3,4].map(t=>hist[t][hist[t].length-1]);
+  const dead=[2,3,4].filter(t=>!c[t-1]).map(t=>NAMES[t]);
+  let msg=dead.length?"Estinte: "+dead.join(", ")+".":"";
+  if(tick>=MAX_GEN){msg=("Simulazione conclusa dopo "+MAX_GEN+" generazioni. "+msg).trim();setRun(false)}
+  $("msg").textContent=msg;
+  if(!c[1]&&!c[2]&&!c[3])setRun(false);
+}
+function record(){
+  const c=[0,0,0,0,0,0];
+  for(let i=0;i<N;i++)c[type[i]]++;
+  for(let t=1;t<=4;t++){hist[t].push(c[t]);if(hist[t].length>1200)hist[t].shift();$("n"+t).textContent=c[t]}
+  $("g").textContent=tick;
+  $("nw").textContent=lakeCount?Math.round(level.reduce((s,v)=>s+Math.max(0,v),0)/lakeCount):0;
+}
+function col(n){return getComputedStyle(document.documentElement).getPropertyValue(n).trim()}
+function draw(){
+  const colors=[null,col("--plant"),col("--giraffe"),col("--lion"),col("--hyena")];
+  mc.fillStyle=col("--land");mc.fillRect(0,0,W*S,H*S);
+  const g=S>=3;
+  mc.fillStyle=col("--water");
+  for(let i=0;i<N;i++)if(type[i]===WA){
+    mc.globalAlpha=.35+.65*level[lakeOf[i]]/100;
+    mc.fillRect((i%W)*S,((i/W)|0)*S,S,S)}
+  mc.globalAlpha=1;
+  for(let i=0;i<N;i++){const t=type[i];if(!t||t===WA)continue;
+    mc.fillStyle=colors[t];
+    mc.fillRect((i%W)*S,((i/W)|0)*S,g?S-1:S,g?S-1:S)}
+  drawChart(cp,cpc,[hist[PL]],[colors[PL]]);
+  drawChart(ca,cac,[hist[GI],hist[LI],hist[HY]],[colors[GI],colors[LI],col("--hyenaLine")]);
+}
+function drawChart(ch,cc,series,colors){
+  const d=window.devicePixelRatio||1,w=ch.clientWidth,h=ch.clientHeight;
+  if(ch.width!==Math.round(w*d)||ch.height!==Math.round(h*d)){ch.width=Math.round(w*d);ch.height=Math.round(h*d)}
+  cc.setTransform(d,0,0,d,0,0);cc.clearRect(0,0,w,h);
+  const mx=Math.max(10,...series.map(a=>Math.max(0,...a))),pl=34,pb=16,pt=6,pr=8,pw=w-pl-pr,ph=h-pt-pb;
+  cc.strokeStyle=col("--line");cc.fillStyle=col("--mut");cc.font="11px system-ui,sans-serif";cc.lineWidth=1;
+  for(let k=0;k<=2;k++){const y=pt+ph*k/2;cc.beginPath();cc.moveTo(pl,y);cc.lineTo(w-pr,y);cc.stroke();
+    cc.textAlign="right";cc.fillText(Math.round(mx*(1-k/2)),pl-4,y+4)}
+  const n=series[0].length,x0=tick-n+1;
+  cc.textAlign="left";cc.fillText(x0,pl,h-3);cc.textAlign="right";cc.fillText(tick,w-pr,h-3);
+  series.forEach((a,s)=>{cc.strokeStyle=colors[s];cc.lineWidth=2;cc.beginPath();
+    a.forEach((v,i)=>{const x=pl+pw*(n>1?i/(n-1):0),y=pt+ph*(1-v/mx);i?cc.lineTo(x,y):cc.moveTo(x,y)});cc.stroke()});
+}
+function loop(){clearTimeout(timer);if(!running)return;step();timer=setTimeout(loop,1000/P.sp)}
+function setRun(r){if(r&&tick>=MAX_GEN)return;running=r;$("pp").textContent=r?"Pausa":"Avvia";if(r)loop();else clearTimeout(timer)}
+$("pp").onclick=()=>setRun(!running);
+$("st").onclick=()=>{setRun(false);step()};
+$("rs").onclick=()=>{init();if(!running)setRun(true)};
+function fit(){
+  const d=window.devicePixelRatio||1;
+  S=Math.max(1,Math.floor($("mapw").clientWidth*d/W));
+  map.width=W*S;map.height=H*S;
+  map.style.width=W*S/d+"px";map.style.height=H*S/d+"px";
+}
+new ResizeObserver(()=>{fit();draw()}).observe($("mapw"));
+addEventListener("resize",()=>{fit();draw()});
+matchMedia("(prefers-color-scheme: dark)").addEventListener("change",draw);
+fit();init();loop();
+</script>
+</body>
+</html>
