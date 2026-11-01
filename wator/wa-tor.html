@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Wa-Tor</title>
+<style>
+:root{--bg:#fff;--fg:#1a1a1a;--mut:#666;--sea:#e6f1fb;--fish:#1d9e75;--shark:#d85a30;--card:#f5f5f3;--line:#d8d8d4;color-scheme:light;
+box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#16181c;--fg:#eee;--mut:#9a9a9a;--sea:#0f2438;--fish:#5dcaa5;--shark:#f0997b;--card:#1f2228;--line:#333;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#16181c;--fg:#eee;--mut:#9a9a9a;--sea:#0f2438;--fish:#5dcaa5;--shark:#f0997b;--card:#1f2228;--line:#333;color-scheme:dark}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.4 system-ui,-apple-system,"Segoe UI",sans-serif}
+main{max-width:720px;margin:0 auto;padding:16px}
+h1{font-size:20px;margin:0 0 2px}
+p.s{margin:0 0 12px;color:var(--mut);font-size:13px}
+canvas{display:block;width:100%;border-radius:8px;border:1px solid var(--line)}
+#map{aspect-ratio:3/2;image-rendering:pixelated;background:var(--sea)}
+#chart{height:170px;margin-top:12px;background:var(--card)}
+.stats{display:flex;gap:16px;flex-wrap:wrap;margin:10px 0;font-size:14px}
+.dot{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:5px}
+.row{display:flex;gap:8px;flex-wrap:wrap;margin:10px 0}
+button{background:var(--card);color:var(--fg);border:1px solid var(--line);border-radius:8px;padding:8px 14px;font:inherit;cursor:pointer}
+.ctl{display:grid;grid-template-columns:1fr;gap:6px;margin-top:8px;font-size:13px;color:var(--mut)}
+.ctl label{display:flex;align-items:center;gap:8px}
+.ctl span:first-child{width:150px;flex:none}
+.ctl input{flex:1;min-width:0}
+.ctl b{width:26px;text-align:right;color:var(--fg)}
+#msg{color:var(--shark);font-size:13px;min-height:18px}
+</style>
+</head>
+<body>
+<main>
+<h1>Wa-Tor</h1>
+<p class="s">Pesci e squali su un mondo toroidale: ciò che esce da un bordo rientra dal lato opposto. Riproducendosi, uno squalo cede metà della sua energia al piccolo.</p>
+<canvas id="map" width="600" height="400"></canvas>
+<div class="stats">
+<span>Generazione: <b id="g">0</b></span>
+<span><i class="dot" style="background:var(--fish)"></i>Pesci: <b id="nf">0</b></span>
+<span><i class="dot" style="background:var(--shark)"></i>Squali: <b id="ns">0</b></span>
+</div>
+<div id="msg"></div>
+<canvas id="chart"></canvas>
+<div class="row">
+<button id="pp">Pausa</button><button id="st">Passo</button><button id="rs">Nuovo mondo</button>
+</div>
+<div class="ctl">
+<label><span>Velocità (gen/s)</span><input id="sp" type="range" min="1" max="60" value="15"><b id="spv">15</b></label>
+<label><span>Riproduzione pesci</span><input id="fb" type="range" min="2" max="10" value="3"><b id="fbv">3</b></label>
+<label><span>Riproduzione squali</span><input id="sb" type="range" min="3" max="25" value="6"><b id="sbv">6</b></label>
+<label><span>Energia per pesce</span><input id="ge" type="range" min="1" max="8" value="2"><b id="gev">2</b></label>
+</div>
+</main>
+<script>
+const W=120,H=80,N=W*H,S=5,START_E=5;
+const $=id=>document.getElementById(id);
+const map=$("map"),mc=map.getContext("2d"),ch=$("chart"),cc=ch.getContext("2d");
+let type,age,en,stamp,order,tick,hf,hs,running=true,timer;
+const P={fb:3,sb:6,ge:2,sp:15};
+["fb","sb","ge","sp"].forEach(k=>{const el=$(k);el.oninput=()=>{P[k]=+el.value;$(k+"v").textContent=el.value}});
+
+function init(){
+  type=new Uint8Array(N);age=new Uint16Array(N);en=new Int16Array(N);stamp=new Int32Array(N);
+  order=Array.from({length:N},(_,i)=>i);tick=0;hf=[];hs=[];
+  for(let i=0;i<N;i++){const r=Math.random();
+    if(r<.25){type[i]=1;age[i]=Math.floor(Math.random()*P.fb)}
+    else if(r<.31){type[i]=2;en[i]=1+Math.floor(Math.random()*START_E);age[i]=Math.floor(Math.random()*P.sb)}}
+  $("msg").textContent="";
+  record();draw();
+}
+function nb(i){const x=i%W,y=(i/W)|0;
+  return [y*W+(x+1)%W,y*W+(x+W-1)%W,((y+1)%H)*W+x,((y+H-1)%H)*W+x]}
+const pick=a=>a[Math.floor(Math.random()*a.length)];
+
+function step(){
+  tick++;
+  for(let i=N-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[order[i],order[j]]=[order[j],order[i]]}
+  for(const i of order){
+    const t=type[i];
+    if(!t||stamp[i]===tick)continue;
+    if(t===2){en[i]--;if(en[i]<=0){type[i]=0;continue}}
+    const n=nb(i);let target=-1;
+    if(t===2){
+      const f=n.filter(j=>type[j]===1);
+      if(f.length){target=pick(f);en[i]+=P.ge}
+    }
+    if(target<0){const e=n.filter(j=>type[j]===0);if(e.length)target=pick(e)}
+    let cur=i,moved=false;
+    if(target>=0){
+      type[target]=t;age[target]=age[i]+1;en[target]=en[i];stamp[target]=tick;
+      type[i]=0;cur=target;moved=true;
+    }else{age[i]++;stamp[i]=tick}
+    if(moved&&age[cur]>=(t===1?P.fb:P.sb)&&(t===1||en[cur]>=2)){
+      let ce=0;if(t===2){ce=en[cur]>>1;en[cur]-=ce}
+      age[cur]=0;type[i]=t;age[i]=0;en[i]=ce;stamp[i]=tick;
+    }
+  }
+  record();draw();
+  if(!hf[hf.length-1]||!hs[hs.length-1]){
+    $("msg").textContent=!hf[hf.length-1]?"Estinzione dei pesci: gli squali moriranno di fame.":"Gli squali si sono estinti: i pesci riempiranno il mondo.";
+  }
+  if(!hf[hf.length-1]&&!hs[hs.length-1]){setRun(false)}
+}
+function record(){
+  let f=0,s=0;for(let i=0;i<N;i++){if(type[i]===1)f++;else if(type[i]===2)s++}
+  hf.push(f);hs.push(s);
+  if(hf.length>1200){hf.shift();hs.shift()}
+  $("g").textContent=tick;$("nf").textContent=f;$("ns").textContent=s;
+}
+function col(n){return getComputedStyle(document.documentElement).getPropertyValue(n).trim()}
+function draw(){
+  const sea=col("--sea"),fi=col("--fish"),sh=col("--shark");
+  mc.fillStyle=sea;mc.fillRect(0,0,W*S,H*S);
+  for(let i=0;i<N;i++){const t=type[i];if(!t)continue;
+    mc.fillStyle=t===1?fi:sh;
+    mc.fillRect((i%W)*S,((i/W)|0)*S,S-1,S-1)}
+  drawChart(fi,sh);
+}
+function drawChart(fi,sh){
+  const d=window.devicePixelRatio||1,w=ch.clientWidth,h=ch.clientHeight;
+  if(ch.width!==Math.round(w*d)){ch.width=Math.round(w*d);ch.height=Math.round(h*d)}
+  cc.setTransform(d,0,0,d,0,0);cc.clearRect(0,0,w,h);
+  const mx=Math.max(10,...hf,...hs),pl=34,pb=18,pt=8,pr=8,pw=w-pl-pr,ph=h-pt-pb;
+  cc.strokeStyle=col("--line");cc.fillStyle=col("--mut");cc.font="11px system-ui,sans-serif";cc.lineWidth=1;
+  for(let k=0;k<=2;k++){const y=pt+ph*k/2;cc.beginPath();cc.moveTo(pl,y);cc.lineTo(w-pr,y);cc.stroke();
+    cc.textAlign="right";cc.fillText(Math.round(mx*(1-k/2)),pl-4,y+4)}
+  const n=hf.length,x0=tick-n+1;
+  cc.textAlign="left";cc.fillText(x0,pl,h-4);cc.textAlign="right";cc.fillText(tick,w-pr,h-4);
+  const line=(a,c)=>{cc.strokeStyle=c;cc.lineWidth=2;cc.beginPath();
+    a.forEach((v,i)=>{const x=pl+pw*(n>1?i/(n-1):0),y=pt+ph*(1-v/mx);i?cc.lineTo(x,y):cc.moveTo(x,y)});cc.stroke()};
+  line(hf,fi);line(hs,sh);
+}
+function loop(){clearTimeout(timer);if(!running)return;step();timer=setTimeout(loop,1000/P.sp)}
+function setRun(r){running=r;$("pp").textContent=r?"Pausa":"Avvia";if(r)loop();else clearTimeout(timer)}
+$("pp").onclick=()=>setRun(!running);
+$("st").onclick=()=>{setRun(false);step()};
+$("rs").onclick=()=>{init();if(!running)setRun(true)};
+addEventListener("resize",draw);
+matchMedia("(prefers-color-scheme: dark)").addEventListener("change",draw);
+init();loop();
+</script>
+</body>
+</html>
