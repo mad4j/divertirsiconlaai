@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Pendolo</title>
+<style>
+:root{--bg:#fff;--fg:#1a1a1a;--mut:#666;--sea:#e6f1fb;--bob:#d85a30;--rod:#1a1a1a;--ang:#1d9e75;--card:#f5f5f3;--line:#d8d8d4;color-scheme:light;
+box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#16181c;--fg:#eee;--mut:#9a9a9a;--sea:#0f2438;--bob:#f0997b;--rod:#eee;--ang:#5dcaa5;--card:#1f2228;--line:#333;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#16181c;--fg:#eee;--mut:#9a9a9a;--sea:#0f2438;--bob:#f0997b;--rod:#eee;--ang:#5dcaa5;--card:#1f2228;--line:#333;color-scheme:dark}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.4 system-ui,-apple-system,"Segoe UI",sans-serif}
+main{max-width:720px;margin:0 auto;padding:16px}
+h1{font-size:20px;margin:0 0 2px}
+p.s{margin:0 0 12px;color:var(--mut);font-size:13px}
+canvas{display:block;width:100%;border-radius:8px;border:1px solid var(--line)}
+#mapw{min-width:0}
+#map{height:auto;aspect-ratio:3/2;border:0;box-shadow:0 0 0 1px var(--line);background:var(--sea);touch-action:none;cursor:grab}
+#map.drag{cursor:grabbing}
+#chart{height:170px;margin-top:12px;background:var(--card)}
+.stats{display:flex;gap:16px;flex-wrap:wrap;margin:10px 0;font-size:14px}
+.dot{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:5px}
+.row{display:flex;gap:8px;flex-wrap:wrap;margin:10px 0}
+button{background:var(--card);color:var(--fg);border:1px solid var(--line);border-radius:8px;padding:8px 14px;font:inherit;cursor:pointer}
+.ctl{display:grid;grid-template-columns:1fr;gap:6px;margin-top:8px;font-size:13px;color:var(--mut)}
+.ctl label{display:flex;align-items:center;gap:8px}
+.ctl span:first-child{width:150px;flex:none}
+.ctl input{flex:1;min-width:0}
+.ctl b{width:40px;text-align:right;color:var(--fg)}
+.rules{margin-top:12px;padding:10px 12px;background:var(--card);border:1px solid var(--line);border-radius:8px;font-size:13px;color:var(--mut)}
+.rules h2{font-size:14px;margin:0 0 6px;color:var(--fg)}
+.rules p{margin:0 0 6px}
+.rules ul{margin:0 0 6px;padding-left:18px}
+.rules li{margin-bottom:3px}
+.rules :last-child{margin-bottom:0}
+#msg{color:var(--bob);font-size:13px;min-height:18px}
+@media (min-width:900px),(min-width:600px) and (min-aspect-ratio:1/1){
+main{max-width:1280px;padding:10px 16px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));
+display:grid;grid-template-columns:min(60%,calc((100vh - 90px)*1.5)) minmax(240px,1fr);column-gap:16px;align-items:start}
+header{grid-column:1/-1}
+p.s{margin-bottom:8px}
+.side{min-width:0}
+.side .stats{margin-top:0}
+#chart{height:130px;margin-top:0}
+}
+@media (max-height:520px) and (min-width:600px){
+main{padding-top:6px;padding-bottom:6px;grid-template-columns:min(60%,calc((100vh - 48px)*1.5)) minmax(240px,1fr)}
+h1{font-size:16px}
+p.s{display:none}
+.side .stats{margin:0 0 4px;gap:10px}
+#msg{min-height:0}
+#msg:empty{display:none}
+#chart{height:80px}
+.row{margin:6px 0}
+button{padding:5px 12px}
+.ctl{gap:3px;margin-top:4px}
+.ctl span:first-child{width:130px}
+}
+</style>
+</head>
+<body>
+<main>
+<header>
+<h1>Pendolo</h1>
+<p class="s">Una massa appesa a un filo oscilla sotto l'azione della gravità. Trascina la massa per cambiare l'angolo iniziale.</p>
+</header>
+<div id="mapw"><canvas id="map" width="600" height="400"></canvas></div>
+<div class="side">
+<div class="stats">
+<span>Tempo: <b id="t">0.0</b> s</span>
+<span><i class="dot" style="background:var(--ang)"></i>Angolo: <b id="an">0</b>°</span>
+<span>Periodo: <b id="pe">0.00</b> s</span>
+</div>
+<div id="msg"></div>
+<canvas id="chart"></canvas>
+<div class="row">
+<button id="pp">Pausa</button><button id="rs">Riavvia</button>
+</div>
+<div class="ctl">
+<label><span>Velocità</span><input id="sp" type="range" min="0.1" max="2" step="0.1" value="1"><b id="spv">1.0×</b></label>
+<label><span>Lunghezza (m)</span><input id="len" type="range" min="0.2" max="3" step="0.1" value="1"><b id="lenv">1.0</b></label>
+<label><span>Gravità (m/s²)</span><input id="gr" type="range" min="1" max="25" step="0.1" value="9.8"><b id="grv">9.8</b></label>
+<label><span>Angolo iniziale (°)</span><input id="a0" type="range" min="5" max="170" value="45"><b id="a0v">45</b></label>
+<label><span>Attrito</span><input id="dm" type="range" min="0" max="1" step="0.05" value="0"><b id="dmv">0.00</b></label>
+</div>
+<section class="rules">
+<h2>Regole</h2>
+<p>Il pendolo è un filo rigido di lunghezza L con una massa all'estremità, vincolato a un punto fisso. L'unica forza che lo muove è la componente della gravità lungo l'arco.</p>
+<ul>
+<li><b>Equazione del moto</b>: θ'' = −(g/L)·sin θ − c·θ', dove c è l'attrito. La simulazione la integra passo dopo passo (metodo di Runge-Kutta).</li>
+<li><b>Periodo</b>: per piccole oscillazioni vale T = 2π√(L/g) e non dipende dalla massa né dall'ampiezza. Per angoli grandi il periodo reale è più lungo: dopo la prima oscillazione il valore mostrato è quello misurato dalla simulazione.</li>
+<li><b>Energia</b>: senza attrito l'oscillazione non si smorza mai; con attrito l'ampiezza decresce fino a fermarsi in basso.</li>
+<li>Il grafico mostra l'angolo nel tempo: una sinusoide per piccole ampiezze, via via più "schiacciata" per ampiezze grandi.</li>
+</ul>
+</section>
+</div>
+</main>
+<script>
+const $=id=>document.getElementById(id);
+const map=$("map"),mc=map.getContext("2d"),ch=$("chart"),cc=ch.getContext("2d");
+const P={sp:1,len:1,gr:9.8,a0:45,dm:0};
+const FMT={sp:v=>(+v).toFixed(1)+"×",len:v=>(+v).toFixed(1),gr:v=>(+v).toFixed(1),a0:v=>v,dm:v=>(+v).toFixed(2)};
+const HIST_S=12;
+let th,om,time,hist,trail,running=true,dragging=false,last=0,lastCross=null,period=0,geo={};
+
+["sp","len","gr","a0","dm"].forEach(k=>{
+  const el=$(k);
+  el.oninput=()=>{P[k]=+el.value;$(k+"v").textContent=FMT[k](el.value);
+    if(k==="a0")init();else if(k==="len"||k==="gr"){period=0;lastCross=null;record()}draw()};
+});
+
+function init(){
+  th=P.a0*Math.PI/180;om=0;time=0;hist=[];trail=[];lastCross=null;period=0;
+  record();draw();
+}
+const acc=(t,w)=>-(P.gr/P.len)*Math.sin(t)-P.dm*w;
+function rk4(dt){
+  const k1t=om,k1w=acc(th,om);
+  const k2t=om+dt/2*k1w,k2w=acc(th+dt/2*k1t,om+dt/2*k1w);
+  const k3t=om+dt/2*k2w,k3w=acc(th+dt/2*k2t,om+dt/2*k2w);
+  const k4t=om+dt*k3w,k4w=acc(th+dt*k3t,om+dt*k3w);
+  th+=dt/6*(k1t+2*k2t+2*k3t+k4t);om+=dt/6*(k1w+2*k2w+2*k3w+k4w);
+}
+function advance(dt){
+  const n=Math.max(1,Math.ceil(dt/0.002)),h=dt/n;
+  for(let i=0;i<n;i++){
+    const prev=th;rk4(h);time+=h;
+    // periodo = tempo tra due passaggi per la verticale nello stesso verso
+    if(prev<0&&th>=0){const tc=time-h*th/(th-prev);if(lastCross!==null)period=tc-lastCross;lastCross=tc}
+  }
+  record();
+}
+function record(){
+  hist.push([time,th]);
+  while(hist.length>2&&time-hist[0][0]>HIST_S)hist.shift();
+  trail.push([Math.sin(th),Math.cos(th)]);if(trail.length>40)trail.shift();
+  $("t").textContent=time.toFixed(1);
+  $("an").textContent=(th*180/Math.PI).toFixed(1);
+  $("pe").textContent=(period||2*Math.PI*Math.sqrt(P.len/P.gr)).toFixed(2);
+  $("msg").textContent=P.dm>0&&Math.abs(om)<.005&&Math.abs(th)<.005?"Il pendolo si è fermato.":"";
+}
+function col(n){return getComputedStyle(document.documentElement).getPropertyValue(n).trim()}
+function draw(){
+  const d=window.devicePixelRatio||1,w=map.clientWidth,h=map.clientHeight;
+  if(map.width!==Math.round(w*d)||map.height!==Math.round(h*d)){map.width=Math.round(w*d);map.height=Math.round(h*d)}
+  mc.setTransform(d,0,0,d,0,0);
+  const bob=col("--bob"),rod=col("--rod"),line=col("--line"),mut=col("--mut");
+  mc.fillStyle=col("--sea");mc.fillRect(0,0,w,h);
+  const px=w/2,py=h*.1,br=Math.max(10,Math.min(w,h)*.04),R=Math.min(h*.88-br,w*.45)*(.35+.65*P.len/3);
+  geo={px,py,R,br};
+  const a0=P.a0*Math.PI/180;
+  mc.strokeStyle=line;mc.lineWidth=1;mc.setLineDash([4,4]);
+  mc.beginPath();mc.moveTo(px,py);mc.lineTo(px,py+R+br+10);mc.stroke();
+  mc.beginPath();mc.arc(px,py,R,Math.PI/2-a0,Math.PI/2+a0);mc.stroke();
+  mc.setLineDash([]);
+  mc.fillStyle=bob;
+  trail.forEach((p,i)=>{mc.globalAlpha=i/trail.length*.35;
+    mc.beginPath();mc.arc(px+p[0]*R,py+p[1]*R,br*.6,0,7);mc.fill()});
+  mc.globalAlpha=1;
+  const bx=px+Math.sin(th)*R,by=py+Math.cos(th)*R;
+  mc.strokeStyle=rod;mc.lineWidth=2;mc.beginPath();mc.moveTo(px,py);mc.lineTo(bx,by);mc.stroke();
+  mc.fillStyle=bob;mc.beginPath();mc.arc(bx,by,br,0,7);mc.fill();
+  mc.fillStyle=rod;mc.beginPath();mc.arc(px,py,4,0,7);mc.fill();
+  mc.lineWidth=3;mc.beginPath();mc.moveTo(px-30,py-6);mc.lineTo(px+30,py-6);mc.stroke();
+  mc.fillStyle=mut;mc.font="12px system-ui,sans-serif";mc.textAlign="left";
+  mc.fillText("θ = "+(th*180/Math.PI).toFixed(1)+"°",8,h-8);
+  drawChart();
+}
+function drawChart(){
+  const d=window.devicePixelRatio||1,w=ch.clientWidth,h=ch.clientHeight;
+  if(ch.width!==Math.round(w*d)||ch.height!==Math.round(h*d)){ch.width=Math.round(w*d);ch.height=Math.round(h*d)}
+  cc.setTransform(d,0,0,d,0,0);cc.clearRect(0,0,w,h);
+  const pl=40,pb=18,pt=8,pr=8,pw=w-pl-pr,ph=h-pt-pb;
+  const mx=Math.max(Math.PI/12,...hist.map(p=>Math.abs(p[1])),P.a0*Math.PI/180)*1.05;
+  cc.strokeStyle=col("--line");cc.fillStyle=col("--mut");cc.font="11px system-ui,sans-serif";cc.lineWidth=1;
+  for(let k=0;k<=2;k++){const y=pt+ph*k/2;cc.beginPath();cc.moveTo(pl,y);cc.lineTo(w-pr,y);cc.stroke();
+    cc.textAlign="right";cc.fillText(Math.round(mx*(1-k)*180/Math.PI)+"°",pl-4,y+4)}
+  const t0=Math.max(0,time-HIST_S);
+  cc.textAlign="left";cc.fillText(t0.toFixed(0)+" s",pl,h-4);cc.textAlign="right";cc.fillText((t0+HIST_S).toFixed(0)+" s",w-pr,h-4);
+  cc.strokeStyle=col("--ang");cc.lineWidth=2;cc.beginPath();
+  hist.forEach((p,i)=>{const x=pl+pw*(p[0]-t0)/HIST_S,y=pt+ph*(.5-p[1]/(2*mx));i?cc.lineTo(x,y):cc.moveTo(x,y)});
+  cc.stroke();
+}
+function loop(ts){
+  if(running&&!dragging){advance(Math.min(.05,(ts-last)/1000||0)*P.sp);draw()}
+  last=ts;requestAnimationFrame(loop);
+}
+function setRun(r){running=r;$("pp").textContent=r?"Pausa":"Avvia"}
+$("pp").onclick=()=>setRun(!running);
+$("rs").onclick=()=>{init();setRun(true)};
+
+const local=e=>{const r=map.getBoundingClientRect();return[e.clientX-r.left,e.clientY-r.top]};
+map.onpointerdown=e=>{
+  const[x,y]=local(e),bx=geo.px+Math.sin(th)*geo.R,by=geo.py+Math.cos(th)*geo.R;
+  if(Math.hypot(x-bx,y-by)>geo.br*2.5)return;
+  dragging=true;map.classList.add("drag");map.setPointerCapture(e.pointerId);
+};
+map.onpointermove=e=>{
+  if(!dragging)return;
+  const[x,y]=local(e),deg=Math.max(-170,Math.min(170,Math.atan2(x-geo.px,y-geo.py)*180/Math.PI));
+  th=deg*Math.PI/180;om=0;
+  P.a0=Math.max(5,Math.round(Math.abs(deg)));$("a0").value=P.a0;$("a0v").textContent=P.a0;
+  hist=[];time=0;lastCross=null;period=0;trail=[];record();draw();
+};
+const endDrag=()=>{dragging=false;map.classList.remove("drag")};
+map.onpointerup=endDrag;map.onpointercancel=endDrag;
+new ResizeObserver(draw).observe($("mapw"));
+matchMedia("(prefers-color-scheme: dark)").addEventListener("change",draw);
+init();requestAnimationFrame(loop);
+</script>
+</body>
+</html>
