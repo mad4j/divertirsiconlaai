@@ -15,7 +15,8 @@ main{max-width:720px;margin:0 auto;padding:16px}
 h1{font-size:20px;margin:0 0 2px}
 p.s{margin:0 0 12px;color:var(--mut);font-size:13px}
 canvas{display:block;width:100%;border-radius:8px;border:1px solid var(--line)}
-#map{aspect-ratio:3/2;image-rendering:pixelated;background:var(--sea)}
+#mapw{min-width:0}
+#map{width:auto;border:0;box-shadow:0 0 0 1px var(--line);image-rendering:pixelated;background:var(--sea)}
 #chart{height:170px;margin-top:12px;background:var(--card)}
 .stats{display:flex;gap:16px;flex-wrap:wrap;margin:10px 0;font-size:14px}
 .dot{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:5px}
@@ -27,13 +28,38 @@ button{background:var(--card);color:var(--fg);border:1px solid var(--line);borde
 .ctl input{flex:1;min-width:0}
 .ctl b{width:26px;text-align:right;color:var(--fg)}
 #msg{color:var(--shark);font-size:13px;min-height:18px}
+@media (min-width:900px),(min-width:600px) and (min-aspect-ratio:1/1){
+main{max-width:1280px;padding:10px 16px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));
+display:grid;grid-template-columns:min(60%,calc((100vh - 90px)*1.5)) minmax(240px,1fr);column-gap:16px;align-items:start}
+header{grid-column:1/-1}
+p.s{margin-bottom:8px}
+.side{min-width:0}
+.side .stats{margin-top:0}
+#chart{height:130px;margin-top:0}
+}
+@media (max-height:520px) and (min-width:600px){
+main{padding-top:6px;padding-bottom:6px;grid-template-columns:min(60%,calc((100vh - 48px)*1.5)) minmax(240px,1fr)}
+h1{font-size:16px}
+p.s{display:none}
+.side .stats{margin:0 0 4px;gap:10px}
+#msg{min-height:0}
+#msg:empty{display:none}
+#chart{height:80px}
+.row{margin:6px 0}
+button{padding:5px 12px}
+.ctl{gap:3px;margin-top:4px}
+.ctl span:first-child{width:130px}
+}
 </style>
 </head>
 <body>
 <main>
+<header>
 <h1>Wa-Tor</h1>
 <p class="s">Pesci e squali su un mondo toroidale: ciò che esce da un bordo rientra dal lato opposto. Riproducendosi, uno squalo cede metà della sua energia al piccolo.</p>
-<canvas id="map" width="600" height="400"></canvas>
+</header>
+<div id="mapw"><canvas id="map" width="600" height="400"></canvas></div>
+<div class="side">
 <div class="stats">
 <span>Generazione: <b id="g">0</b></span>
 <span><i class="dot" style="background:var(--fish)"></i>Pesci: <b id="nf">0</b></span>
@@ -50,9 +76,11 @@ button{background:var(--card);color:var(--fg);border:1px solid var(--line);borde
 <label><span>Riproduzione squali</span><input id="sb" type="range" min="3" max="25" value="6"><b id="sbv">6</b></label>
 <label><span>Energia per pesce</span><input id="ge" type="range" min="1" max="8" value="2"><b id="gev">2</b></label>
 </div>
+</div>
 </main>
 <script>
-const W=120,H=80,N=W*H,S=5,START_E=5;
+const W=120,H=80,N=W*H,START_E=5;
+let S=5;
 const $=id=>document.getElementById(id);
 const map=$("map"),mc=map.getContext("2d"),ch=$("chart"),cc=ch.getContext("2d");
 let type,age,en,stamp,order,tick,hf,hs,running=true,timer;
@@ -110,10 +138,10 @@ function record(){
 function col(n){return getComputedStyle(document.documentElement).getPropertyValue(n).trim()}
 function draw(){
   const sea=col("--sea"),fi=col("--fish"),sh=col("--shark");
-  mc.fillStyle=sea;mc.fillRect(0,0,W*S,H*S);
+  mc.fillStyle=sea;mc.fillRect(0,0,W*S,H*S);const g=S>=3;
   for(let i=0;i<N;i++){const t=type[i];if(!t)continue;
     mc.fillStyle=t===1?fi:sh;
-    mc.fillRect((i%W)*S,((i/W)|0)*S,S-1,S-1)}
+    mc.fillRect((i%W)*S,((i/W)|0)*S,g?S-1:S,g?S-1:S)}
   drawChart(fi,sh);
 }
 function drawChart(fi,sh){
@@ -135,9 +163,16 @@ function setRun(r){running=r;$("pp").textContent=r?"Pausa":"Avvia";if(r)loop();e
 $("pp").onclick=()=>setRun(!running);
 $("st").onclick=()=>{setRun(false);step()};
 $("rs").onclick=()=>{init();if(!running)setRun(true)};
-addEventListener("resize",draw);
+function fit(){
+  const d=window.devicePixelRatio||1;
+  S=Math.max(1,Math.floor($("mapw").clientWidth*d/W));
+  map.width=W*S;map.height=H*S;
+  map.style.width=W*S/d+"px";map.style.height=H*S/d+"px";
+}
+new ResizeObserver(()=>{fit();draw()}).observe($("mapw"));
+addEventListener("resize",()=>{fit();draw()});
 matchMedia("(prefers-color-scheme: dark)").addEventListener("change",draw);
-init();loop();
+fit();init();loop();
 </script>
 </body>
 </html>
