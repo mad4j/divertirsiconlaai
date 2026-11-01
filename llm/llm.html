@@ -40,6 +40,10 @@ button{cursor:pointer}
 .rules ul{margin:0 0 6px;padding-left:18px}
 .rules li{margin-bottom:3px}
 .rules :last-child{margin-bottom:0}
+.corpus{margin-top:12px;padding:10px 12px;background:var(--card);border:1px solid var(--line);border-radius:8px;font-size:13px;color:var(--mut)}
+.corpus summary{cursor:pointer;font-weight:600;color:var(--fg)}
+.corpus p{margin:8px 0 6px}
+#corpus{display:block;width:100%;min-height:120px;max-height:320px;resize:vertical;background:var(--bg);color:var(--fg);border:1px solid var(--line);border-radius:8px;padding:8px;font:inherit;line-height:1.5}
 #msg{color:var(--shark);font-size:13px;min-height:18px}
 @media (min-width:900px),(min-width:600px) and (min-aspect-ratio:1/1){
 main{max-width:1280px;padding:10px 16px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));
@@ -110,25 +114,55 @@ button,select,input[type=text]{padding:5px 12px}
 </ul>
 <p>Il testo è generato, non copiato: con lo stesso inizio il modello può proseguire in modi diversi. Le parole assenti dal corpus di addestramento vengono ignorate.</p>
 </section>
+<details class="corpus">
+<summary>Testo di addestramento</summary>
+<p id="cstat"></p>
+<textarea id="corpus" rows="8" maxlength="30000" spellcheck="false" aria-label="Testo di addestramento"></textarea>
+<div class="row"><button id="tr">Addestra su questo testo</button><button id="tz">Ripristina originale</button></div>
+</details>
 </div>
 </main>
 <script>
 const CORPUS=`Un modello linguistico impara a prevedere la parola successiva. Il modello legge il testo e calcola la probabilità di ogni parola. L'intelligenza artificiale scrive un testo una parola alla volta. Il testo viene diviso in piccoli pezzi chiamati token. Ogni token riceve un numero e un vettore. La rete neurale impara dai testi con milioni di esempi. L'attenzione sceglie le parole più importanti del contesto. Il contesto è il testo che il modello ha già letto. La temperatura rende il modello più prudente o più creativo. Il modello sceglie la parola più probabile oppure ne sorteggia una. Il pesce nuota nel mare blu. Il pesce mangia le alghe nel mare. Lo squalo nuota veloce nell'oceano profondo. Lo squalo mangia il pesce e nuota nel mare. Il mare è grande e profondo. Il mare blu ospita pesci e squali. L'oceano è pieno di pesci, di alghe e di squali. La balena nuota lenta nell'oceano blu. Il pesce piccolo nuota nel mare e sfugge allo squalo. Lo squalo ha fame e cerca un pesce nel mare. Il robot impara a parlare con le persone. Il robot legge un libro e impara una nuova parola. La rete neurale legge il testo e impara le parole. Il modello impara a scrivere una storia. Una storia comincia con una parola e continua con un'altra parola. Il computer legge milioni di libri e impara a scrivere. Il computer calcola la probabilità e sceglie la parola successiva. La parola successiva dipende dal contesto. Il contesto aiuta il modello a capire il testo. L'attenzione guarda il contesto e sceglie le parole importanti. Il modello scrive una frase e poi scrive un'altra frase. La probabilità di una parola cambia con il contesto. Il pesce nuota e lo squalo lo segue nel mare profondo. Il modello impara dai testi e dalle storie. L'intelligenza artificiale aiuta le persone a scrivere e a imparare. Le persone parlano con il computer e il computer risponde. Il computer risponde con un testo e il testo ha un senso. Un buon modello scrive un testo con un senso. Il mare è blu e il cielo è grande. Lo squalo e il pesce vivono nel mare. Il robot nuota nel mare e parla con i pesci. La rete neurale ha milioni di numeri e impara dai testi.`;
 const EXAMPLES=["il modello linguistico","lo squalo","il pesce nuota nel","la rete neurale","il contesto","l'intelligenza artificiale"];
-const MAXTOK=80,SLOTS=8,LW=600,LH=400,EPS=.5,BAR=8,PUNCT=/^[.,!?]$/;
+const MAXTOK=80,SLOTS=8,LW=600,LH=400,EPS=.5,BAR=8,PUNCT=/^[.,!?]$/,MINTOK=20,MAXCHARS=30000;
 
-const tokenize=s=>(s.toLowerCase().match(/[a-zàèéìòù]+'?|[.,!?]/g)||[]);
-const words=tokenize(CORPUS),vocab=[],id={},uni=[];
-for(const w of words){if(!(w in id)){id[w]=vocab.length;vocab.push(w);uni.push(0)}uni[id[w]]++}
-const V=vocab.length,tot=words.length;
-const U=uni.map(c=>c/tot),idf=uni.map(c=>Math.log(tot/c));
-// cnt[d-1][a] conta le parole che compaiono d posizioni dopo il token a
-const cnt=Array.from({length:SLOTS},()=>Array.from({length:V},()=>new Map())),sum=Array.from({length:SLOTS},()=>new Float64Array(V));
-const seq=words.map(w=>id[w]);
-for(let i=0;i<seq.length;i++)for(let d=1;d<=SLOTS&&i+d<seq.length;d++){
-  const m=cnt[d-1][seq[i]],b=seq[i+d];m.set(b,(m.get(b)||0)+1);sum[d-1][seq[i]]++}
+const tokenize=s=>(s.toLowerCase().replace(/[’‘]/g,"'").match(/\p{L}+'?|[.,!?]/gu)||[]);
+let words,vocab,id,uni,V,tot,U,idf,cnt,sum,dflt;
+// addestra il modello sul testo; restituisce false (senza modificare nulla) se il testo è troppo corto
+function train(text){
+  const w=tokenize(text);
+  if(w.filter(t=>!PUNCT.test(t)).length<MINTOK)return false;
+  const vo=[],ix=Object.create(null),un=[];
+  for(const t of w){if(!(t in ix)){ix[t]=vo.length;vo.push(t);un.push(0)}un[ix[t]]++}
+  words=w;vocab=vo;id=ix;uni=un;V=vo.length;tot=w.length;
+  U=uni.map(c=>c/tot);idf=uni.map(c=>Math.log(tot/c));
+  dflt=0;uni.forEach((c,i)=>{if(!PUNCT.test(vocab[i])&&(PUNCT.test(vocab[dflt])||c>uni[dflt]))dflt=i});
+  // cnt[d-1][a] conta le parole che compaiono d posizioni dopo il token a
+  cnt=Array.from({length:SLOTS},()=>Array.from({length:V},()=>new Map()));sum=Array.from({length:SLOTS},()=>new Float64Array(V));
+  const seq=words.map(t=>id[t]);
+  for(let i=0;i<seq.length;i++)for(let d=1;d<=SLOTS&&i+d<seq.length;d++){
+    const m=cnt[d-1][seq[i]],b=seq[i+d];m.set(b,(m.get(b)||0)+1);sum[d-1][seq[i]]++}
+  return true;
+}
+function makeExamples(text){
+  const out=[];
+  for(const s of text.split(/[.!?]+/)){
+    const t=tokenize(s).filter(x=>!PUNCT.test(x)).slice(0,3);
+    if(t.length>=2){const e=t.join(" ").replace(/' /g,"'");if(!out.includes(e))out.push(e)}
+    if(out.length>=6)break}
+  return out.length?out:[vocab[dflt]];
+}
 
 const $=id=>document.getElementById(id);
+function loadCorpus(text,examples){
+  if(!train(text)){$("cstat").textContent="Testo troppo corto: servono almeno "+MINTOK+" parole.";return false}
+  const sel=$("ex");sel.textContent="";
+  (examples||makeExamples(text)).forEach(e=>{const o=document.createElement("option");o.value=e;o.textContent=e;sel.appendChild(o)});
+  $("pt").value=sel.options[0].value;
+  $("cstat").textContent="Il modello ha imparato solo da questo testo: "+tot+" token, "+V+" parole distinte.";
+  return true;
+}
 const map=$("map"),mc=map.getContext("2d"),ch=$("chart"),cc=ch.getContext("2d");
 const P={sp:3,tm:8,tk:8,wn:4};
 const fmt={tm:v=>(v/10).toFixed(1)};
@@ -136,16 +170,18 @@ const fmt={tm:v=>(v/10).toFixed(1)};
   if(k!=="sp"&&last&&last.chosen<0){prepare();draw()}}});
 let ctx,prompt,gen,he,hs,last,running=true,timer;
 
-EXAMPLES.forEach(e=>{const o=document.createElement("option");o.value=e;o.textContent=e;$("ex").appendChild(o)});
-$("pt").value=EXAMPLES[0];
+loadCorpus(CORPUS,EXAMPLES);
+$("corpus").value=CORPUS;
+$("tr").onclick=()=>{if(loadCorpus($("corpus").value))init()};
+$("tz").onclick=()=>{$("corpus").value=CORPUS;loadCorpus(CORPUS,EXAMPLES);init()};
 $("ex").onchange=()=>{$("pt").value=$("ex").value;init()};
 $("pt").onkeydown=e=>{if(e.key==="Enter")init()};
 
 function init(){
   const raw=tokenize($("pt").value),ids=raw.filter(w=>w in id).map(w=>id[w]);
-  prompt=ids.length?ids:[id["il"]];
+  prompt=ids.length?ids:[dflt];
   ctx=prompt.slice();gen=0;he=[];hs=[];
-  $("msg").textContent=!raw.length?"Prompt vuoto: parto da «il».":raw.length!==ids.length?"Alcune parole non sono nel vocabolario e vengono ignorate.":"";
+  $("msg").textContent=!raw.length?"Prompt vuoto: parto da «"+vocab[dflt]+"».":raw.length!==ids.length?"Alcune parole non sono nel vocabolario e vengono ignorate.":"";
   $("g").textContent=0;$("en").textContent="0.0";$("tp").textContent=0;
   renderOut();prepare();draw();
   if(!running)setRun(true);
