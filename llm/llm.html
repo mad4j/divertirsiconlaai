@@ -40,6 +40,16 @@ button{cursor:pointer}
 .rules ul{margin:0 0 6px;padding-left:18px}
 .rules li{margin-bottom:3px}
 .rules :last-child{margin-bottom:0}
+.rules summary{cursor:pointer;font-weight:600;font-size:14px;color:var(--fg)}
+.rules summary+*{margin-top:8px}
+.calc h3{font-size:13px;margin:12px 0 4px;color:var(--fg)}
+.calc table{width:100%;border-collapse:collapse;font-size:12px;margin:4px 0 8px}
+.calc th{text-align:left;font-weight:600;color:var(--mut);padding:2px 4px;border-bottom:1px solid var(--line)}
+.calc td{padding:3px 4px;vertical-align:middle;color:var(--fg)}
+.calc td.n{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+.calc td.b{width:70px}
+.calc tr.t td{font-weight:600;border-top:1px solid var(--line)}
+.calc .bar{display:block;height:8px;border-radius:4px}
 .corpus{margin-top:12px;padding:10px 12px;background:var(--card);border:1px solid var(--line);border-radius:8px;font-size:13px;color:var(--mut)}
 .corpus summary{cursor:pointer;font-weight:600;color:var(--fg)}
 .corpus p{margin:8px 0 6px}
@@ -95,7 +105,7 @@ button,select,input[type=text]{padding:5px 12px}
 <span><i class="dot" style="background:var(--shark)"></i>Sorpresa del token scelto</span>
 </div>
 <div class="row">
-<button id="pp">Pausa</button><button id="st">Passo</button><button id="rs">Ricomincia</button>
+<button id="pp">Avvia</button><button id="st">Passo</button><button id="rs">Ricomincia</button>
 </div>
 <div class="ctl">
 <label><span>Velocità (token/s)</span><input id="sp" type="range" min="1" max="20" value="3"><b id="spv">3</b></label>
@@ -103,17 +113,21 @@ button,select,input[type=text]{padding:5px 12px}
 <label><span>Top-k</span><input id="tk" type="range" min="1" max="20" value="8"><b id="tkv">8</b></label>
 <label><span>Finestra di contesto</span><input id="wn" type="range" min="1" max="8" value="4"><b id="wnv">4</b></label>
 </div>
-<section class="rules">
-<h2>Come funziona</h2>
+<details class="rules">
+<summary>Come funziona</summary>
 <p>Questo è un modello in miniatura, addestrato in pagina su un breve testo italiano: i principi sono quelli dei veri LLM, ma al posto di miliardi di parametri ha solo qualche tabella di conteggi.</p>
 <ul>
 <li><b>Token</b>: il testo viene spezzato in parole e segni di punteggiatura, ciascuno con un numero identificativo.</li>
-<li><b>Attenzione</b>: ogni token della finestra di contesto riceve un peso. Pesano di più i token vicini e quelli rari e informativi; articoli e punteggiatura contano meno. Lo spessore delle linee mostra quanto.</li>
+<li><b>Attenzione</b>: ogni token della finestra di contesto riceve un peso. Pesano di più i token vicini e quelli rari e informativi; articoli e punteggiatura contano meno. Lo spessore e la luminosità delle linee mostrano quanto; ogni distanza ha il suo colore, che ritrovi nelle tabelle qui sotto.</li>
 <li><b>Probabilità</b>: i punteggi dei token del contesto, pesati dall'attenzione, si sommano in un punteggio (logit) per ogni parola del vocabolario; la softmax li trasforma in probabilità.</li>
 <li><b>Campionamento</b>: la temperatura rende la scelta più prudente (bassa) o più creativa (alta); il top-k tiene solo le k parole più probabili. La parola sorteggiata viene aggiunta al testo e il ciclo riparte.</li>
 </ul>
 <p>Il testo è generato, non copiato: con lo stesso inizio il modello può proseguire in modi diversi. Le parole assenti dal corpus di addestramento vengono ignorate.</p>
-</section>
+</details>
+<details class="rules calc">
+<summary>Come vengono calcolati i numeri</summary>
+<div id="calc" aria-live="off"></div>
+</details>
 <details class="corpus">
 <summary>Testo di addestramento</summary>
 <p id="cstat"></p>
@@ -126,6 +140,8 @@ button,select,input[type=text]{padding:5px 12px}
 const CORPUS=`Un modello linguistico impara a prevedere la parola successiva. Il modello legge il testo e calcola la probabilità di ogni parola. L'intelligenza artificiale scrive un testo una parola alla volta. Il testo viene diviso in piccoli pezzi chiamati token. Ogni token riceve un numero e un vettore. La rete neurale impara dai testi con milioni di esempi. L'attenzione sceglie le parole più importanti del contesto. Il contesto è il testo che il modello ha già letto. La temperatura rende il modello più prudente o più creativo. Il modello sceglie la parola più probabile oppure ne sorteggia una. Il pesce nuota nel mare blu. Il pesce mangia le alghe nel mare. Lo squalo nuota veloce nell'oceano profondo. Lo squalo mangia il pesce e nuota nel mare. Il mare è grande e profondo. Il mare blu ospita pesci e squali. L'oceano è pieno di pesci, di alghe e di squali. La balena nuota lenta nell'oceano blu. Il pesce piccolo nuota nel mare e sfugge allo squalo. Lo squalo ha fame e cerca un pesce nel mare. Il robot impara a parlare con le persone. Il robot legge un libro e impara una nuova parola. La rete neurale legge il testo e impara le parole. Il modello impara a scrivere una storia. Una storia comincia con una parola e continua con un'altra parola. Il computer legge milioni di libri e impara a scrivere. Il computer calcola la probabilità e sceglie la parola successiva. La parola successiva dipende dal contesto. Il contesto aiuta il modello a capire il testo. L'attenzione guarda il contesto e sceglie le parole importanti. Il modello scrive una frase e poi scrive un'altra frase. La probabilità di una parola cambia con il contesto. Il pesce nuota e lo squalo lo segue nel mare profondo. Il modello impara dai testi e dalle storie. L'intelligenza artificiale aiuta le persone a scrivere e a imparare. Le persone parlano con il computer e il computer risponde. Il computer risponde con un testo e il testo ha un senso. Un buon modello scrive un testo con un senso. Il mare è blu e il cielo è grande. Lo squalo e il pesce vivono nel mare. Il robot nuota nel mare e parla con i pesci. La rete neurale ha milioni di numeri e impara dai testi.`;
 const EXAMPLES=["il modello linguistico","lo squalo","il pesce nuota nel","la rete neurale","il contesto","l'intelligenza artificiale"];
 const MAXTOK=80,SLOTS=8,LW=600,LH=400,EPS=.5,BAR=8,PUNCT=/^[.,!?]$/,MINTOK=20,MAXCHARS=30000;
+// colore associato alla distanza del token di contesto (1 = ultimo token)
+const COL=["#1d9e75","#378add","#7f77dd","#d4537e","#ef9f27","#2bb3c0","#a0b020","#8a8a85"];
 
 const tokenize=s=>(s.toLowerCase().replace(/[’‘]/g,"'").match(/\p{L}+'?|[.,!?]/gu)||[]);
 let words,vocab,id,uni,V,tot,U,idf,cnt,sum,dflt;
@@ -168,7 +184,7 @@ const P={sp:3,tm:8,tk:8,wn:4};
 const fmt={tm:v=>(v/10).toFixed(1)};
 ["sp","tm","tk","wn"].forEach(k=>{const el=$(k);el.oninput=()=>{P[k]=+el.value;$(k+"v").textContent=(fmt[k]||(v=>v))(el.value);
   if(k!=="sp"&&last&&last.chosen<0){prepare();draw()}}});
-let ctx,prompt,gen,he,hs,last,running=true,timer;
+let ctx,prompt,gen,he,hs,last,running=false,timer;
 
 loadCorpus(CORPUS,EXAMPLES);
 $("corpus").value=CORPUS;
@@ -182,15 +198,15 @@ function init(){
   prompt=ids.length?ids:[dflt];
   ctx=prompt.slice();gen=0;he=[];hs=[];
   $("msg").textContent=!raw.length?"Prompt vuoto: parto da «"+vocab[dflt]+"».":raw.length!==ids.length?"Alcune parole non sono nel vocabolario e vengono ignorate.":"";
+  if(!running)$("msg").textContent+=($("msg").textContent?" ":"")+"Premi «Passo» per generare un token alla volta, oppure «Avvia».";
   $("g").textContent=0;$("en").textContent="0.0";$("tp").textContent=0;
   renderOut();prepare();draw();
-  if(!running)setRun(true);
 }
 // calcola attenzione e logit del prossimo token, senza ancora sceglierlo
 function prepare(){
   const win=Math.min(P.wn,ctx.length),att=[];
   let mx=-1e9;
-  for(let k=0;k<win;k++){const t=ctx[ctx.length-1-k],l=-1.1*k+.25*idf[t];att.push({t,d:k+1,l});if(l>mx)mx=l}
+  for(let k=0;k<win;k++){const t=ctx[ctx.length-1-k],l=-1.1*k+.25*idf[t];att.push({t,d:k+1,l,i:idf[t]});if(l>mx)mx=l}
   let z=0;att.forEach(a=>{a.w=Math.exp(a.l-mx);z+=a.w});att.forEach(a=>a.w/=z);
   const logit=new Float64Array(V);
   for(const a of att){const m=cnt[a.d-1][a.t],s=sum[a.d-1][a.t];
@@ -248,21 +264,32 @@ function draw(){
   mc.fillText("2 · Attenzione",20,86);
   mc.fillText("3 · Probabilità del prossimo token (softmax, temperatura "+(P.tm/10).toFixed(1)+", top-"+P.tk+")",20,158);
   const bw=64,gap=6,x0=(LW-(SLOTS*bw+(SLOTS-1)*gap))/2,by=22,bh=28,nx=LW/2,ny=110,nw=150,nh=26;
-  const cs=last.ctx,att=last.att,L=cs.length,wmax=Math.max(...att.map(a=>a.w));
+  const cs=last.ctx,att=last.att,L=cs.length,wmax=Math.max(...att.map(a=>a.w)),lines=[];
   for(let s=0;s<SLOTS;s++){
     const x=x0+s*(bw+gap),cx=x+bw/2,j=s-(SLOTS-L);
     if(j<0){mc.setLineDash([3,3]);mc.strokeStyle=ln;mc.lineWidth=1;rr(x,by,bw,bh,6);mc.stroke();mc.setLineDash([]);continue}
     const a=att.find(q=>q.d===L-j);
-    mc.fillStyle=card;mc.strokeStyle=a?fi:ln;mc.lineWidth=a?1.5:1;rr(x,by,bw,bh,6);mc.fill();mc.stroke();
+    mc.fillStyle=card;mc.strokeStyle=a?COL[a.d-1]:ln;mc.lineWidth=a?2:1;rr(x,by,bw,bh,6);mc.fill();mc.stroke();
     mc.fillStyle=a?fg:mu;mc.textAlign="center";mc.globalAlpha=a?1:.5;
     mc.fillText(fitText(vocab[cs[j]],bw-8,12),cx,by+bh/2);mc.globalAlpha=1;
     mc.fillStyle=mu;mc.font="10px system-ui,sans-serif";mc.fillText("#"+cs[j],cx,by+bh+8);
     if(a){
       mc.fillStyle=fg;mc.font="11px system-ui,sans-serif";mc.fillText(Math.round(a.w*100)+"%",cx,by+bh+22);
-      mc.strokeStyle=fi;mc.globalAlpha=.3+.7*a.w/wmax;mc.lineWidth=.5+7*a.w;
-      mc.beginPath();mc.moveTo(cx,by+bh+32);mc.lineTo(nx+(cx-nx)*.25,ny);mc.stroke();mc.globalAlpha=1;
+      lines.push({cx,a});
     }
   }
+  // linee curve con sfumatura dal colore del token a quello del nodo; la più forte brilla
+  const y1=by+bh+32;
+  lines.sort((p,q)=>p.a.w-q.a.w).forEach(({cx,a})=>{
+    const ex=nx+(cx-nx)*.25,c=COL[a.d-1],g=mc.createLinearGradient(0,y1,0,ny),strong=a.w===wmax,ym=(y1+ny)/2;
+    g.addColorStop(0,c);g.addColorStop(1,sh);
+    mc.strokeStyle=g;mc.lineCap="round";mc.globalAlpha=.4+.6*a.w/wmax;mc.lineWidth=1+8*a.w;
+    if(strong){mc.shadowColor=c;mc.shadowBlur=12*k}
+    mc.beginPath();mc.moveTo(cx,y1);mc.bezierCurveTo(cx,ym+8,ex,ym-8,ex,ny-2);mc.stroke();
+    mc.shadowBlur=0;mc.globalAlpha=1;
+    mc.fillStyle=c;mc.beginPath();mc.arc(cx,y1,2+3*a.w,0,6.2832);mc.fill();
+  });
+  mc.lineCap="butt";
   mc.fillStyle=card;mc.strokeStyle=sh;mc.lineWidth=1.5;rr(nx-nw/2,ny,nw,nh,13);mc.fill();mc.stroke();
   mc.fillStyle=fg;mc.textAlign="center";mc.font="12px system-ui,sans-serif";
   mc.fillText(done?"→ «"+vocab[last.chosen]+"»":"prossimo token ?",nx,ny+nh/2);
@@ -278,6 +305,42 @@ function draw(){
     mc.fillText(kept?(p[t]<.01?"<1":Math.round(p[t]*100))+"%":"escluso",bx+bwid+6,y+rh/2);
   });
   drawChart(fi,sh);
+  renderCalc(dist,done);
+}
+const n2=(x,k=2)=>x.toFixed(k).replace(".",",");
+const esc=s=>s.replace(/[&<>"]/g,c=>"&#"+c.charCodeAt(0)+";");
+// spiega passo per passo i numeri del prossimo token (o di quello appena scelto)
+function renderCalc(dist,done){
+  const att=last.att,T=P.tm/10,hi=done?last.chosen:dist.idx[0],hw=esc(vocab[hi]);
+  const sw=d=>'<i class="dot" style="background:'+COL[d-1]+'"></i>';
+  const bar=(f,c)=>'<span class="bar" style="width:'+Math.max(2,Math.round(f*100))+'%;background:'+c+'"></span>';
+  let h='<p>Calcolo per '+(done?"il token appena scelto":"il prossimo token")+'.</p>';
+  h+='<h3>① Attenzione: quanto pesa ogni token del contesto</h3>'
+    +'<p>punteggio = −1,1 × (distanza − 1) + 0,25 × rarità, dove rarità = ln(token totali ÷ occorrenze del token). Il peso è la softmax: e<sup>punteggio</sup> ÷ somma di tutti gli e<sup>punteggio</sup>.</p>'
+    +'<table><tr><th>token</th><th>dist.</th><th>rarità</th><th>punteggio</th><th>peso</th></tr>';
+  for(const a of att)h+='<tr><td>'+sw(a.d)+esc(vocab[a.t])+'</td><td class="n">'+a.d+'</td><td class="n">'+n2(a.i)+'</td><td class="n">'+n2(a.l)+'</td><td class="n">'+Math.round(a.w*100)+'%</td><td class="b">'+bar(a.w,COL[a.d-1])+'</td></tr>';
+  h+='</table>';
+  h+='<h3>② Punteggio (logit) della parola «'+hw+'»</h3>'
+    +'<p>Ogni token del contesto guarda quante volte, nel testo di addestramento, «'+hw+'» è comparsa a quella distanza dopo di lui: P = (volte + 0,5 × frequenza generale) ÷ (occorrenze del token + 0,5). Logit = somma dei ln P, ciascuno moltiplicato per il peso di attenzione.</p>'
+    +'<table><tr><th>token</th><th>visto</th><th>P</th><th>peso × ln P</th></tr>';
+  let lg=0;
+  for(const a of att){
+    const m=cnt[a.d-1][a.t].get(hi)||0,s=sum[a.d-1][a.t],P_=(m+EPS*U[hi])/(s+EPS),c=a.w*Math.log(P_);lg+=c;
+    h+='<tr><td>'+sw(a.d)+esc(vocab[a.t])+'</td><td class="n">'+m+' su '+s+'</td><td class="n">'+(P_<.01?"<1":Math.round(P_*100))+'%</td><td class="n">'+n2(a.w)+' × '+n2(Math.log(P_))+' = '+n2(c)+'</td><td class="b">'+bar(P_,COL[a.d-1])+'</td></tr>';
+  }
+  h+='<tr class="t"><td colspan="3">logit di «'+hw+'»</td><td class="n">'+n2(lg)+'</td></tr></table>';
+  const mx=last.logit[dist.idx[0]],cand=dist.idx.slice(0,5);
+  if(done&&!cand.includes(hi))cand[4]=hi;
+  let z=0;for(const w of dist.top)z+=Math.exp((last.logit[w]-mx)/T);
+  h+='<h3>③ Softmax: dai logit alle probabilità</h3>'
+    +'<p>p = e<sup>(logit − logit massimo) ÷ T</sup> ÷ Z, con T = '+n2(T,1)+' (temperatura). Z è la somma calcolata solo sulle '+Math.min(P.tk,V)+' parole con logit più alto (top-k); le altre hanno probabilità 0. Temperatura bassa = differenze amplificate; alta = differenze attenuate.</p>'
+    +'<table><tr><th>parola</th><th>logit</th><th>(logit − max) ÷ T</th><th>p</th></tr>';
+  for(const w of cand){
+    const kept=dist.p[w]>0;
+    h+='<tr'+(w===hi?' class="t"':'')+'><td>'+esc(vocab[w])+'</td><td class="n">'+n2(last.logit[w])+'</td><td class="n">'+n2((last.logit[w]-mx)/T)+'</td><td class="n">'+(kept?(dist.p[w]<.01?"<1":Math.round(dist.p[w]*100))+'%':"escluso")+'</td><td class="b">'+bar(kept?dist.p[w]/Math.max(...dist.top.map(t=>dist.p[t])):0,w===last.chosen?'var(--shark)':'var(--fish)')+'</td></tr>';
+  }
+  h+='</table><p>Z = '+n2(z)+'. La parola viene poi sorteggiata con queste probabilità.</p>';
+  $("calc").innerHTML=h;
 }
 function drawChart(fi,sh){
   const d=window.devicePixelRatio||1,w=ch.clientWidth,h=ch.clientHeight;
@@ -295,12 +358,12 @@ function drawChart(fi,sh){
 }
 function loop(){clearTimeout(timer);if(!running)return;step();if(running)timer=setTimeout(loop,1000/P.sp)}
 function setRun(r){running=r;$("pp").textContent=r?"Pausa":"Avvia";if(r)loop();else clearTimeout(timer)}
-$("pp").onclick=()=>{if(!running&&gen>=MAXTOK)init();else setRun(!running)};
+$("pp").onclick=()=>{if(!running&&gen>=MAXTOK)init();setRun(!running)};
 $("st").onclick=()=>{setRun(false);if(gen>=MAXTOK)init();step()};
 $("rs").onclick=()=>init();
 new ResizeObserver(()=>draw()).observe($("mapw"));
 matchMedia("(prefers-color-scheme: dark)").addEventListener("change",draw);
-init();loop();
+init();
 </script>
 </body>
 </html>
