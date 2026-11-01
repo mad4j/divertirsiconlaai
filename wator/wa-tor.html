@@ -27,6 +27,12 @@ button{background:var(--card);color:var(--fg);border:1px solid var(--line);borde
 .ctl span:first-child{width:150px;flex:none}
 .ctl input{flex:1;min-width:0}
 .ctl b{width:26px;text-align:right;color:var(--fg)}
+.rules{margin-top:12px;padding:10px 12px;background:var(--card);border:1px solid var(--line);border-radius:8px;font-size:13px;color:var(--mut)}
+.rules h2{font-size:14px;margin:0 0 6px;color:var(--fg)}
+.rules p{margin:0 0 6px}
+.rules ul{margin:0 0 6px;padding-left:18px}
+.rules li{margin-bottom:3px}
+.rules :last-child{margin-bottom:0}
 #msg{color:var(--shark);font-size:13px;min-height:18px}
 @media (min-width:900px),(min-width:600px) and (min-aspect-ratio:1/1){
 main{max-width:1280px;padding:10px 16px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));
@@ -76,6 +82,17 @@ button{padding:5px 12px}
 <label><span>Riproduzione squali</span><input id="sb" type="range" min="3" max="25" value="6"><b id="sbv">6</b></label>
 <label><span>Energia per pesce</span><input id="ge" type="range" min="1" max="8" value="2"><b id="gev">2</b></label>
 </div>
+<section class="rules">
+<h2>Regole</h2>
+<p>Il mondo è una griglia toroidale: ogni cella ha 4 vicine (su, giù, sinistra, destra) e i bordi si ricongiungono. A ogni generazione le creature agiscono una alla volta, in ordine casuale.</p>
+<ul>
+<li><b>Pesci</b>: si spostano in una cella vicina libera scelta a caso. Quando la loro età raggiunge il valore di "Riproduzione pesci", lasciano un piccolo nella cella appena abbandonata.</li>
+<li><b>Squali</b>: perdono 1 energia a ogni generazione e muoiono a energia 0. Se hanno un pesce vicino lo mangiano, spostandosi nella sua cella e guadagnando "Energia per pesce"; altrimenti si muovono in una cella libera.</li>
+<li><b>Riproduzione degli squali</b>: raggiunta l'età di "Riproduzione squali" (e con almeno 2 energia) lasciano un piccolo, a cui cedono metà della propria energia.</li>
+<li>Se un animale non può muoversi, resta fermo e invecchia.</li>
+</ul>
+<p>Il risultato è un equilibrio instabile: più pesci favoriscono gli squali, che a loro volta riducono i pesci. Se i pesci si estinguono, gli squali muoiono di fame.</p>
+</section>
 </div>
 </main>
 <script>
