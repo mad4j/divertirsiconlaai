@@ -5,3 +5,4 @@ Apri [`index.html`](index.html) per la pagina principale con i link alle simulaz
 
 - [Wa-Tor](wator/wa-tor.html)
 - [Luce contro suono](lucevssuono/luce-vs-suono.html)
+- [Pendolo](pendolo/pendolo.html)
