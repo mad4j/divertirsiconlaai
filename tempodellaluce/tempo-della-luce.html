@@ -9,21 +9,16 @@
 @media(prefers-color-scheme:dark){:root{--bg:#1b1c1f;--text:#e8e8ea;--secondary:#a0a4ab;--muted:#a0a4ab;--surface:#2a2c31;--border:#3d4047;--accent:#b5d4f4;--accent-bg:#0c447c;--light:#ffc267;--light-bg:#633806;color-scheme:dark}}
 *{box-sizing:border-box}
 body{margin:0;background:var(--bg);color:var(--text);font:16px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
-.app{max-width:560px;margin:0 auto;padding:20px 16px 32px}
+.app{max-width:720px;margin:0 auto;padding:20px 16px 32px}
 h1{font-size:22px;line-height:1.3;margin:0 0 8px}
 .intro,.note{color:var(--secondary);font-size:14px}
 .intro{margin:0 0 18px}
 h2{font-size:15px;margin:0 0 8px}
-.destinations{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-bottom:20px}
 button{font:inherit;color:inherit;background:transparent;border:1px solid var(--border);border-radius:10px;cursor:pointer}
 button:hover{background:var(--surface)}
 button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
-.destination{text-align:left;padding:10px 12px}
-.destination[aria-pressed=true]{border-color:var(--accent);background:var(--accent-bg)}
-.destination strong,.destination span{display:block}
-.destination strong{font-size:14px}
-.destination span{color:var(--secondary);font-size:12px}
-.journey{background:var(--surface);border-radius:10px;padding:16px;margin-bottom:12px}
+.journeys{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,300px),1fr));gap:10px;margin-bottom:16px}
+.journey{background:var(--surface);border-radius:10px;padding:14px}
 .journey-heading,.endpoints,.progress-label{display:flex;justify-content:space-between;gap:12px}
 .journey-heading{align-items:baseline;flex-wrap:wrap}
 .journey-heading h2{font-size:18px;margin:0}
@@ -42,28 +37,15 @@ button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .go{width:100%;min-height:44px;font-weight:600;margin-top:12px}
 .status{font-size:14px;color:var(--secondary);min-height:42px;margin:12px 0}
 .note{margin:16px 0 0}
-@media(max-width:340px){.destinations{grid-template-columns:1fr}}
 </style>
 </head>
 <body>
 <main class="app">
   <h1>Il viaggio della luce</h1>
-  <p class="intro">Quanto impiega la luce a percorrere lo spazio? Scegli una destinazione e confronta i tempi di viaggio dalla Terra.</p>
+  <p class="intro">Quanto impiega la luce a percorrere lo spazio? Avvia i viaggi dalla Terra e confronta tutte le destinazioni in contemporanea.</p>
 
-  <h2>Destinazione</h2>
-  <div class="destinations" id="destinations"></div>
-
-  <section class="journey" aria-labelledby="journey-title">
-    <div class="journey-heading">
-      <h2 id="journey-title"></h2>
-      <span class="distance" id="distance"></span>
-    </div>
-    <div class="track" role="progressbar" aria-label="Avanzamento della luce" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" id="progress">
-      <div class="bar" id="bar"></div><div class="dot" id="dot"></div>
-    </div>
-    <div class="endpoints"><span>Terra</span><span id="endpoint"></span></div>
-    <div class="progress-label"><span id="percent">0%</span><span>Arrivo: <strong id="arrival"></strong></span></div>
-  </section>
+  <h2>Destinazioni</h2>
+  <div class="journeys" id="journeys"></div>
 
   <div class="clock">
     <div class="clock-label">Tempo trascorso</div>
@@ -98,61 +80,79 @@ function formatTime(seconds) {
   if (seconds < 31557600) return number(seconds / 86400, 2) + ' giorni';
   return number(seconds / 31557600, 2) + ' anni';
 }
-const buttons = destinations.map((destination, index) => {
-  const button = document.createElement('button');
-  button.type = 'button';
-  button.className = 'destination';
-  button.setAttribute('aria-pressed', 'false');
-  const title = document.createElement('strong');
-  title.textContent = destination.name;
-  const time = document.createElement('span');
-  time.textContent = formatTime(destination.km / C);
-  button.append(title, time);
-  button.addEventListener('click', () => select(index));
-  el('destinations').appendChild(button);
-  return button;
+const journeys = destinations.map(destination => {
+  const section = document.createElement('section');
+  section.className = 'journey';
+  const heading = document.createElement('div');
+  heading.className = 'journey-heading';
+  const title = document.createElement('h2');
+  title.textContent = 'Verso ' + destination.name;
+  const distance = document.createElement('span');
+  distance.className = 'distance';
+  distance.textContent = number(destination.km, 0) + ' km';
+  heading.append(title, distance);
+  const track = document.createElement('div');
+  track.className = 'track';
+  track.setAttribute('role', 'progressbar');
+  track.setAttribute('aria-label', 'Avanzamento della luce verso ' + destination.name);
+  track.setAttribute('aria-valuemin', '0');
+  track.setAttribute('aria-valuemax', '100');
+  track.setAttribute('aria-valuenow', '0');
+  const bar = document.createElement('div');
+  bar.className = 'bar';
+  const dot = document.createElement('div');
+  dot.className = 'dot';
+  track.append(bar, dot);
+  const endpoints = document.createElement('div');
+  endpoints.className = 'endpoints';
+  const earth = document.createElement('span');
+  earth.textContent = 'Terra';
+  const endpoint = document.createElement('span');
+  endpoint.textContent = destination.name;
+  endpoints.append(earth, endpoint);
+  const label = document.createElement('div');
+  label.className = 'progress-label';
+  const percent = document.createElement('span');
+  percent.textContent = '0%';
+  const arrival = document.createElement('span');
+  arrival.append('Arrivo: ');
+  const arrivalTime = document.createElement('strong');
+  arrivalTime.textContent = formatTime(destination.km / C);
+  arrival.appendChild(arrivalTime);
+  label.append(percent, arrival);
+  section.append(heading, track, endpoints, label);
+  el('journeys').appendChild(section);
+  return {destination, track, bar, dot, percent};
 });
-let selected = 0, elapsed = 0, running = false, finished = false, accelerated = true, last = 0, frame = 0;
-function duration() { return destinations[selected].km / C; }
-function rate() { return accelerated ? duration() / 12 : 1; }
+const longestDuration = Math.max(...destinations.map(destination => destination.km / C));
+let elapsed = 0, running = false, finished = false, accelerated = true, last = 0, frame = 0;
+function rate() { return accelerated ? longestDuration / 12 : 1; }
 function render() {
-  const progress = Math.min(elapsed / duration(), 1);
   el('clock').textContent = formatTime(elapsed);
-  el('percent').textContent = number(progress * 100, 1) + '%';
-  el('progress').setAttribute('aria-valuenow', String(Math.round(progress * 100)));
-  el('bar').style.width = (progress * 100) + '%';
-  el('dot').style.left = 'calc(' + (progress * 100) + '% - ' + (progress * 14) + 'px)';
+  journeys.forEach(({destination, track, bar, dot, percent}) => {
+    const progress = Math.min(elapsed / (destination.km / C), 1);
+    percent.textContent = number(progress * 100, 1) + '%';
+    track.setAttribute('aria-valuenow', String(Math.round(progress * 100)));
+    bar.style.width = (progress * 100) + '%';
+    dot.style.left = 'calc(' + (progress * 100) + '% - ' + (progress * 14) + 'px)';
+  });
 }
 function showSpeed() {
   el('real').setAttribute('aria-pressed', String(!accelerated));
   el('fast').setAttribute('aria-pressed', String(accelerated));
   el('speed-detail').textContent = accelerated
-    ? '1 secondo reale = ' + formatTime(rate()) + ' simulati. Il viaggio dura circa 12 secondi.'
+    ? '1 secondo reale = ' + formatTime(rate()) + ' simulati. Il viaggio più lungo dura circa 12 secondi.'
     : '1 secondo reale = 1 secondo simulato.';
-}
-function select(index) {
-  cancelAnimationFrame(frame);
-  selected = index; elapsed = 0; running = false; finished = false; last = 0;
-  const destination = destinations[selected];
-  buttons.forEach((button, i) => button.setAttribute('aria-pressed', String(i === selected)));
-  el('journey-title').textContent = 'Verso ' + destination.name;
-  el('endpoint').textContent = destination.name;
-  el('distance').textContent = number(destination.km, 0) + ' km';
-  el('arrival').textContent = formatTime(duration());
-  el('go').textContent = 'Avvia simulazione';
-  el('status').textContent = 'La luce è pronta a partire dalla Terra.';
-  showSpeed();
-  render();
 }
 function tick(now) {
   if (!running) return;
-  if (last) elapsed = Math.min(duration(), elapsed + (now - last) / 1000 * rate());
+  if (last) elapsed = Math.min(longestDuration, elapsed + (now - last) / 1000 * rate());
   last = now;
   render();
-  if (elapsed >= duration()) {
+  if (elapsed >= longestDuration) {
     running = false; finished = true; last = 0;
     el('go').textContent = 'Ricomincia';
-    el('status').textContent = 'La luce ha raggiunto ' + destinations[selected].name + ' in ' + formatTime(duration()) + '.';
+    el('status').textContent = 'La luce ha raggiunto tutte le destinazioni.';
   } else {
     frame = requestAnimationFrame(tick);
   }
@@ -166,7 +166,7 @@ el('go').addEventListener('click', () => {
     if (finished) { elapsed = 0; finished = false; render(); }
     running = true; last = 0;
     el('go').textContent = 'Pausa';
-    el('status').textContent = 'La luce è in viaggio verso ' + destinations[selected].name + '.';
+    el('status').textContent = 'Tutti i viaggi sono iniziati dalla Terra.';
     frame = requestAnimationFrame(tick);
   }
 });
@@ -177,7 +177,8 @@ function setSpeed(fast) {
 }
 el('real').addEventListener('click', () => setSpeed(false));
 el('fast').addEventListener('click', () => setSpeed(true));
-select(0);
+showSpeed();
+render();
 </script>
 </body>
 </html>
